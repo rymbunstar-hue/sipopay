@@ -1,0 +1,28 @@
+{
+  "short_name": "SIPOPAY",
+  "name": "SIPOPAY — Sistem Informasi Posyandu Terintegrasi",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#f4fbf7",
+  "theme_color": "#0d5c3a",
+  "display": "standalone",
+  "orientation": "portrait"
+}
