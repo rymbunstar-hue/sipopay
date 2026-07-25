@@ -1,94 +1,72 @@
 import { create } from 'zustand';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import type { User, Session } from '@supabase/supabase-js';
-
-export interface Profile {
-  id: string;
-  nama: string;
-  username: string;
-  role: 'super_admin' | 'admin_desa' | 'bidan' | 'kader' | 'masyarakat';
-  posyandu_id: string | null;
-  aktif: boolean;
-  created_at: string;
-}
 
 interface AuthState {
   user: User | null;
   session: Session | null;
-  profile: Profile | null;
-  loading: boolean;
-  error: string | null;
-  initialize: () => Promise<void>;
+  role: string | null;
+  isLoading: boolean;
+  setUser: (user: User | null) => void;
+  setSession: (session: Session | null) => void;
+  setRole: (role: string | null) => void;
   signOut: () => Promise<void>;
-  clearError: () => void;
+  initialize: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   session: null,
-  profile: null,
-  loading: true,
-  error: null,
-
+  role: null,
+  isLoading: true,
+  setUser: (user) => set({ user }),
+  setSession: (session) => set({ session }),
+  setRole: (role) => set({ role }),
+  signOut: async () => {
+    await supabase.auth.signOut();
+    set({ user: null, session: null, role: null });
+  },
   initialize: async () => {
-    set({ loading: true, error: null });
     try {
-      // Dapatkan session aktif saat ini
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (sessionError) throw sessionError;
-
       if (session) {
-        const user = session.user;
-        // Dapatkan profil user berdasarkan id
-        const { data: profile, error: profileError } = await supabase
+        set({ session, user: session.user });
+        
+        // Fetch role from profiles
+        const { data: profile } = await supabase
           .from('profiles')
-          .select('*')
-          .eq('id', user.id)
+          .select('peran')
+          .eq('id', session.user.id)
           .single();
-
-        if (profileError) {
-          // Jika profile tidak ditemukan atau error, kita tetap set user dan session
-          console.error('Gagal memuat profil user:', profileError.message);
-          set({ session, user, profile: null, loading: false });
-        } else {
-          set({ session, user, profile: profile as Profile, loading: false });
+          
+        if (profile) {
+          set({ role: profile.peran });
+        }
+      }
+    } catch (error) {
+      console.error('Error initializing auth:', error);
+    } finally {
+      set({ isLoading: false });
+    }
+    
+    // Listen for auth changes
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      set({ session, user: session?.user || null });
+      
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('peran')
+          .eq('id', session.user.id)
+          .single();
+          
+        if (profile) {
+          set({ role: profile.peran });
         }
       } else {
-        set({ session: null, user: null, profile: null, loading: false });
+        set({ role: null });
       }
-
-      // Dengarkan perubahan auth state (login/logout/token refreshed)
-      supabase.auth.onAuthStateChange(async (_event, session) => {
-        if (session) {
-          const user = session.user;
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-          
-          set({ session, user, profile: profile as Profile, loading: false });
-        } else {
-          set({ session: null, user: null, profile: null, loading: false });
-        }
-      });
-
-    } catch (err: any) {
-      set({ error: err.message, loading: false });
-    }
-  },
-
-  signOut: async () => {
-    set({ loading: true });
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      set({ session: null, user: null, profile: null, loading: false });
-    } catch (err: any) {
-      set({ error: err.message, loading: false });
-    }
-  },
-
-  clearError: () => set({ error: null })
+    });
+  }
 }));
