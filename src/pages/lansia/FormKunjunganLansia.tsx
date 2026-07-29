@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Scale, Ruler, Activity, Baby, Search, X, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Save, Scale, Activity, HeartPulse, Search, X, ChevronDown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 import { useAuthStore } from '../../store/authStore';
-import { DEMO_EMAILS, demoPeserta, demoKunjunganBalita } from '../../lib/demoData';
-
-const KUNJUNGAN_KEY = 'demo_kunjungan_balita';
+import { DEMO_EMAILS, demoPeserta } from '../../lib/demoData';
 
 // ── Searchable Combobox Component ──────────────────────────────────────────
 interface ComboboxOption { id: string; nama: string; nik?: string | null; }
 
-function BalitaCombobox({
+function LansiaCombobox({
   options,
   value,
   onChange,
@@ -26,7 +24,6 @@ function BalitaCombobox({
 
   const selected = options.find(o => o.id === value);
 
-  // Tutup saat klik di luar
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -59,7 +56,6 @@ function BalitaCombobox({
 
   return (
     <div ref={containerRef} className="relative">
-      {/* Trigger */}
       <div
         onClick={() => setOpen(prev => !prev)}
         className={`w-full flex items-center gap-2 px-4 py-2.5 bg-gray-50 border rounded-xl cursor-pointer transition-colors ${
@@ -71,14 +67,14 @@ function BalitaCombobox({
           <input
             autoFocus
             className="flex-1 bg-transparent outline-none text-sm text-gray-900 placeholder-gray-400"
-            placeholder="Ketik nama atau NIK balita..."
+            placeholder="Ketik nama atau NIK lansia..."
             value={query}
             onChange={e => setQuery(e.target.value)}
             onClick={e => e.stopPropagation()}
           />
         ) : (
           <span className={`flex-1 text-sm truncate ${selected ? 'text-gray-900' : 'text-gray-400'}`}>
-            {selected ? selected.nama : '-- Cari & Pilih Balita --'}
+            {selected ? selected.nama : '-- Cari & Pilih Lansia --'}
           </span>
         )}
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -96,13 +92,12 @@ function BalitaCombobox({
         </div>
       </div>
 
-      {/* Dropdown list */}
       {open && (
         <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
           <div className="max-h-56 overflow-y-auto">
             {filtered.length === 0 ? (
               <div className="px-4 py-3 text-sm text-gray-500 text-center">
-                Tidak ada balita ditemukan
+                Tidak ada lansia ditemukan
               </div>
             ) : (
               filtered.map(opt => (
@@ -127,19 +122,17 @@ function BalitaCombobox({
             )}
           </div>
           <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 text-xs text-gray-400">
-            {filtered.length} dari {options.length} balita
+            {filtered.length} dari {options.length} lansia
           </div>
         </div>
       )}
-
-      {/* Hidden input untuk form validation */}
       <input type="hidden" name="peserta_id" value={value} required />
     </div>
   );
 }
 
 // ── Main Form ───────────────────────────────────────────────────────────────
-export default function FormKunjunganBalita() {
+export default function FormKunjunganLansia() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [pesertaList, setPesertaList] = useState<any[]>([]);
@@ -149,25 +142,27 @@ export default function FormKunjunganBalita() {
     peserta_id: '',
     tanggal_kunjungan: new Date().toISOString().split('T')[0],
     berat_badan: '',
-    tinggi_badan: '',
-    lingkar_kepala: '',
-    lingkar_lengan: '',
-    catatan_kader: ''
+    tekanan_darah: '',
+    gula_darah: '',
+    kolesterol: '',
+    asam_urat: '',
+    keluhan: '',
+    tindak_lanjut: ''
   });
 
   useEffect(() => {
     const fetchPeserta = async () => {
-      // Demo mode: gunakan data dummy
+      // Demo mode
       if (DEMO_EMAILS.includes(user?.email || '')) {
-        const balitaDemo = demoPeserta.filter(p => p.kategori === 'balita');
-        setPesertaList(balitaDemo);
+        const lansiaDemo = demoPeserta.filter(p => p.kategori === 'lansia');
+        setPesertaList(lansiaDemo);
         return;
       }
 
       const { data } = await supabase
         .from('peserta')
         .select('id, nama, nik')
-        .eq('kategori', 'balita')
+        .eq('kategori', 'lansia')
         .order('nama', { ascending: true });
       
       if (data) setPesertaList(data);
@@ -183,7 +178,7 @@ export default function FormKunjunganBalita() {
     e.preventDefault();
 
     if (!formData.peserta_id) {
-      alert('Silakan pilih balita terlebih dahulu.');
+      alert('Silakan pilih peserta lansia terlebih dahulu.');
       return;
     }
 
@@ -193,66 +188,49 @@ export default function FormKunjunganBalita() {
       // --- DEMO MODE BYPASS ---
       if (DEMO_EMAILS.includes(user?.email || '')) {
         await new Promise(resolve => setTimeout(resolve, 800));
-
-        // Cari data peserta yg dipilih
         const selectedPeserta = pesertaList.find((p: any) => p.id === formData.peserta_id);
         const newKunjungan = {
-          id: `kunjungan-${Date.now()}`,
+          id: `lansia-${Date.now()}`,
           tanggal: formData.tanggal_kunjungan,
-          berat_badan: parseFloat(formData.berat_badan),
-          tinggi_badan: parseFloat(formData.tinggi_badan),
-          lingkar_kepala: formData.lingkar_kepala ? parseFloat(formData.lingkar_kepala) : null,
-          lingkar_lengan: formData.lingkar_lengan ? parseFloat(formData.lingkar_lengan) : null,
-          stunting_status: 'normal',
-          status_gizi_bbu: 'Normal',
-          catatan: formData.catatan_kader || null,
-          peserta: {
-            nama: selectedPeserta?.nama || 'Tidak diketahui',
-            nama_ibu: selectedPeserta?.nama_ibu || '-',
-          },
+          berat_badan: parseFloat(formData.berat_badan) || 0,
+          tekanan_darah: formData.tekanan_darah,
+          gula_darah: formData.gula_darah ? parseInt(formData.gula_darah) : null,
+          kolesterol: formData.kolesterol ? parseInt(formData.kolesterol) : null,
+          asam_urat: formData.asam_urat ? parseFloat(formData.asam_urat) : null,
+          keluhan: formData.keluhan || null,
+          peserta: { nama: selectedPeserta?.nama || 'Tidak diketahui', nik: selectedPeserta?.nik || '-' },
         };
-
-        // Simpan ke localStorage agar muncul di riwayat
-        const saved = localStorage.getItem(KUNJUNGAN_KEY);
-        const existing = saved ? JSON.parse(saved) : [...demoKunjunganBalita];
-        const updated = [newKunjungan, ...existing];
-        localStorage.setItem(KUNJUNGAN_KEY, JSON.stringify(updated));
-        // Update in-memory array juga
-        demoKunjunganBalita.unshift(newKunjungan as any);
-
-        alert('Kunjungan berhasil disimpan!');
-        navigate('/balita');
+        const saved = localStorage.getItem('demo_kunjungan_lansia');
+        const { demoKunjunganLansia } = await import('../../lib/demoData');
+        const existing = saved ? JSON.parse(saved) : [...demoKunjunganLansia];
+        localStorage.setItem('demo_kunjungan_lansia', JSON.stringify([newKunjungan, ...existing]));
+        alert('Data lansia berhasil disimpan!');
+        navigate('/lansia');
         return;
       }
       // ------------------------
 
       const kunjunganData = {
         peserta_id: formData.peserta_id,
-        sesi_id: '00000000-0000-0000-0000-000000000000',
+        sesi_id: '00000000-0000-0000-0000-000000000000', // Sesi posyandu placeholder
         berat_badan: parseFloat(formData.berat_badan),
-        tinggi_badan: parseFloat(formData.tinggi_badan),
-        cara_ukur: 'berdiri',
-        lingkar_kepala: formData.lingkar_kepala ? parseFloat(formData.lingkar_kepala) : null,
-        lingkar_lengan: formData.lingkar_lengan ? parseFloat(formData.lingkar_lengan) : null,
-        z_score_bbu: 0.5,
-        z_score_tbu: 0.2,
-        z_score_bbtb: 0.3,
-        status_gizi_bbu: 'Normal',
-        status_gizi_tbu: 'Normal',
-        status_gizi_bbtb: 'Normal',
-        stunting_status: 'normal',
-        catatan: formData.catatan_kader || null,
-        kader_id: user?.id || '00000000-0000-0000-0000-000000000000',
+        tekanan_darah: formData.tekanan_darah,
+        gula_darah: formData.gula_darah ? parseInt(formData.gula_darah) : null,
+        kolesterol: formData.kolesterol ? parseInt(formData.kolesterol) : null,
+        asam_urat: formData.asam_urat ? parseFloat(formData.asam_urat) : null,
+        keluhan: formData.keluhan || null,
+        tindak_lanjut: formData.tindak_lanjut || null,
+        petugas_id: user?.id || '00000000-0000-0000-0000-000000000000',
         tanggal: formData.tanggal_kunjungan
       };
 
-      const { error } = await supabase.from('kunjungan_balita').insert([kunjunganData]);
+      const { error } = await supabase.from('kunjungan_lansia').insert([kunjunganData]);
 
       if (error) throw error;
       
-      navigate('/balita');
+      navigate('/lansia');
     } catch (error) {
-      console.error('Error saving kunjungan:', error);
+      console.error('Error saving kunjungan lansia:', error);
       alert('Gagal menyimpan data kunjungan.');
     } finally {
       setLoading(false);
@@ -269,8 +247,8 @@ export default function FormKunjunganBalita() {
           <ArrowLeft className="h-5 w-5 text-gray-600" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Input Kunjungan Balita</h1>
-          <p className="text-gray-500 mt-1">Pencatatan hasil penimbangan dan pengukuran Posyandu bulanan.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Input Kunjungan Lansia</h1>
+          <p className="text-gray-500 mt-1">Pencatatan hasil pemeriksaan kesehatan Posyandu Lansia.</p>
         </div>
       </div>
 
@@ -279,16 +257,16 @@ export default function FormKunjunganBalita() {
           
           <section>
             <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-100 pb-2 mb-4 flex items-center gap-2">
-              <Baby className="h-5 w-5 text-gov-green" />
-              Data Balita & Jadwal
+              <Activity className="h-5 w-5 text-gov-green" />
+              Data Lansia & Jadwal
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
-                  Cari Balita
+                  Cari Lansia
                   <span className="ml-1 text-xs font-normal text-gray-400">(ketik nama atau NIK)</span>
                 </label>
-                <BalitaCombobox
+                <LansiaCombobox
                   options={pesertaList}
                   value={formData.peserta_id}
                   onChange={(id) => setFormData(prev => ({ ...prev, peserta_id: id }))}
@@ -310,8 +288,8 @@ export default function FormKunjunganBalita() {
 
           <section>
             <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-100 pb-2 mb-4 flex items-center gap-2">
-              <Scale className="h-5 w-5 text-gov-green" />
-              Pengukuran Fisik
+              <HeartPulse className="h-5 w-5 text-gov-green" />
+              Pemeriksaan Kesehatan
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-2 md:col-span-2">
@@ -330,39 +308,46 @@ export default function FormKunjunganBalita() {
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <Ruler className="h-4 w-4 text-gray-400" /> Tinggi / Panjang Badan (cm)
-                </label>
+                <label className="text-sm font-medium text-gray-700">Tekanan Darah (mmHg)</label>
                 <input 
-                  type="number" 
-                  step="0.1"
-                  name="tinggi_badan"
+                  type="text" 
+                  name="tekanan_darah"
                   required
-                  value={formData.tinggi_badan}
+                  value={formData.tekanan_darah}
                   onChange={handleChange}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors"
-                  placeholder="0.0"
+                  placeholder="Contoh: 120/80"
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-gray-700">Lingkar Kepala (cm) - Opsional</label>
+                <label className="text-sm font-medium text-gray-700">Gula Darah (mg/dL) - Opsional</label>
                 <input 
                   type="number" 
-                  step="0.1"
-                  name="lingkar_kepala"
-                  value={formData.lingkar_kepala}
+                  name="gula_darah"
+                  value={formData.gula_darah}
                   onChange={handleChange}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors"
-                  placeholder="0.0"
+                  placeholder="0"
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-gray-700">Lingkar Lengan (cm) - Opsional</label>
+                <label className="text-sm font-medium text-gray-700">Kolesterol (mg/dL) - Opsional</label>
+                <input 
+                  type="number" 
+                  name="kolesterol"
+                  value={formData.kolesterol}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors"
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium text-gray-700">Asam Urat (mg/dL) - Opsional</label>
                 <input 
                   type="number" 
                   step="0.1"
-                  name="lingkar_lengan"
-                  value={formData.lingkar_lengan}
+                  name="asam_urat"
+                  value={formData.asam_urat}
                   onChange={handleChange}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors"
                   placeholder="0.0"
@@ -374,18 +359,31 @@ export default function FormKunjunganBalita() {
           <section>
             <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-100 pb-2 mb-4 flex items-center gap-2">
               <Activity className="h-5 w-5 text-gov-green" />
-              Catatan Kader
+              Keluhan & Tindak Lanjut
             </h3>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Keterangan Tambahan / Keluhan</label>
-              <textarea 
-                name="catatan_kader"
-                rows={3}
-                value={formData.catatan_kader}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors resize-none"
-                placeholder="Contoh: Balita mengalami demam ringan, disarankan minum ASI lebih sering."
-              ></textarea>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Keluhan</label>
+                <textarea 
+                  name="keluhan"
+                  rows={2}
+                  value={formData.keluhan}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors resize-none"
+                  placeholder="Contoh: Sering pegal, pusing..."
+                ></textarea>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Tindak Lanjut</label>
+                <textarea 
+                  name="tindak_lanjut"
+                  rows={2}
+                  value={formData.tindak_lanjut}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors resize-none"
+                  placeholder="Contoh: Diberikan obat, disarankan ke Puskesmas..."
+                ></textarea>
+              </div>
             </div>
           </section>
 
@@ -394,7 +392,7 @@ export default function FormKunjunganBalita() {
         <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-4">
           <button 
             type="button"
-            onClick={() => navigate('/balita')}
+            onClick={() => navigate('/lansia')}
             className="px-6 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 font-medium transition-colors text-sm"
           >
             Batal
@@ -407,7 +405,7 @@ export default function FormKunjunganBalita() {
             {loading ? 'Menyimpan...' : (
               <>
                 <Save className="h-4 w-4" />
-                Simpan Kunjungan
+                Simpan Data
               </>
             )}
           </button>

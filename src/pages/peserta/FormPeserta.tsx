@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, User, Calendar, MapPin, Users } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Save, User, Calendar, MapPin, Users, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
+import { DEMO_EMAILS, demoPeserta } from '../../lib/demoData';
 
 export default function FormPeserta() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const { user } = useAuthStore();
   
+  const defaultCategory = searchParams.get('kategori') || 'Balita';
+  const redirectPath = searchParams.get('redirect') || '/kader';
+
   const [formData, setFormData] = useState({
     nik: '',
     no_kk: '',
@@ -19,7 +27,7 @@ export default function FormPeserta() {
     alamat_lengkap: '',
     rt: '',
     rw: '',
-    kategori: 'Balita' // Balita, Ibu Hamil, Lansia
+    kategori: defaultCategory
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -31,16 +39,55 @@ export default function FormPeserta() {
     setLoading(true);
 
     try {
+      // --- DEMO MODE BYPASS ---
+      if (DEMO_EMAILS.includes(user?.email || '')) {
+        await new Promise(resolve => setTimeout(resolve, 800));
+        // Tambahkan ke list demo agar muncul di halaman peserta
+        demoPeserta.unshift({
+          id: `demo-${Date.now()}`,
+          nik: formData.nik || '-',
+          nama: formData.nama_lengkap,
+          jenis_kelamin: formData.jenis_kelamin,
+          tanggal_lahir: formData.tanggal_lahir,
+          kategori: formData.kategori === 'Balita' ? 'balita' : formData.kategori === 'Ibu Hamil' ? 'ibu_hamil' : 'lansia',
+          nama_ibu: formData.nama_ibu || null,
+          created_at: new Date().toISOString(),
+        });
+        setSuccess(true);
+        setTimeout(() => navigate(redirectPath), 1500);
+        return;
+      }
+      // ------------------------
+
+      const categoryMapping: Record<string, string> = {
+        'Balita': 'balita',
+        'Ibu Hamil': 'ibu_hamil',
+        'Lansia': 'lansia'
+      };
+
+      const payload = {
+        nik: formData.nik || null,
+        nomor_kk: formData.no_kk,
+        nama: formData.nama_lengkap,
+        jenis_kelamin: formData.jenis_kelamin,
+        tanggal_lahir: formData.tanggal_lahir,
+        kategori: categoryMapping[formData.kategori] || 'balita',
+        alamat: formData.alamat_lengkap,
+        rt: formData.rt,
+        rw: formData.rw,
+        nama_ibu: formData.nama_ibu || null,
+        nama_ayah: formData.nama_ayah || null,
+        posyandu_id: '00000000-0000-0000-0000-000000000000' // Placeholder
+      };
+
       // Basic insert into Supabase
-      const { error } = await supabase.from('peserta').insert([{
-        ...formData,
-        posyandu_id: '00000000-0000-0000-0000-000000000000' // Placeholder, should be selected or from user context
-      }]);
+      const { error } = await supabase.from('peserta').insert([payload]);
 
       if (error) throw error;
       
       // Success, redirect back
-      navigate('/peserta');
+      setSuccess(true);
+      setTimeout(() => navigate(redirectPath), 1500);
     } catch (error) {
       console.error('Error saving data:', error);
       alert('Gagal menyimpan data. Pastikan NIK belum terdaftar dan koneksi internet stabil.');
@@ -51,6 +98,12 @@ export default function FormPeserta() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
+      {success && (
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-green-600 text-white px-5 py-3 rounded-2xl shadow-xl shadow-green-700/30 animate-in slide-in-from-top-2 duration-300">
+          <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+          <span className="font-medium text-sm">Peserta berhasil ditambahkan! Mengalihkan halaman...</span>
+        </div>
+      )}
       <div className="flex items-center gap-4">
         <button 
           onClick={() => navigate(-1)}
@@ -79,10 +132,12 @@ export default function FormPeserta() {
                 <input 
                   type="text" 
                   name="nik"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   required
                   maxLength={16}
                   value={formData.nik}
-                  onChange={handleChange}
+                  onChange={(e) => setFormData({ ...formData, nik: e.target.value.replace(/\D/g, '') })}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors"
                   placeholder="16 Digit NIK"
                 />
@@ -92,9 +147,11 @@ export default function FormPeserta() {
                 <input 
                   type="text" 
                   name="no_kk"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   maxLength={16}
                   value={formData.no_kk}
-                  onChange={handleChange}
+                  onChange={(e) => setFormData({ ...formData, no_kk: e.target.value.replace(/\D/g, '') })}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors"
                   placeholder="16 Digit No. KK (Opsional)"
                 />
@@ -127,16 +184,10 @@ export default function FormPeserta() {
               
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Kategori Peserta</label>
-                <select 
-                  name="kategori"
-                  value={formData.kategori}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors"
-                >
-                  <option value="Balita">Balita (0-5 Tahun)</option>
-                  <option value="Ibu Hamil">Ibu Hamil</option>
-                  <option value="Lansia">Lansia</option>
-                </select>
+                <div className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-gray-700 font-medium text-sm">
+                  {formData.kategori === 'Balita' ? '👶 Balita (0-5 Tahun)' : formData.kategori === 'Ibu Hamil' ? '🤰 Ibu Hamil' : '🧓 Lansia'}
+                </div>
+                <input type="hidden" name="kategori" value={formData.kategori} />
               </div>
             </div>
           </section>
@@ -231,8 +282,11 @@ export default function FormPeserta() {
                 <input 
                   type="text" 
                   name="rt"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={3}
                   value={formData.rt}
-                  onChange={handleChange}
+                  onChange={(e) => setFormData({ ...formData, rt: e.target.value.replace(/\D/g, '') })}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors"
                   placeholder="001"
                 />
@@ -242,8 +296,11 @@ export default function FormPeserta() {
                 <input 
                   type="text" 
                   name="rw"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={3}
                   value={formData.rw}
-                  onChange={handleChange}
+                  onChange={(e) => setFormData({ ...formData, rw: e.target.value.replace(/\D/g, '') })}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors"
                   placeholder="002"
                 />
@@ -256,7 +313,7 @@ export default function FormPeserta() {
         <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-4">
           <button 
             type="button"
-            onClick={() => navigate('/peserta')}
+            onClick={() => navigate(redirectPath)}
             className="px-6 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 font-medium transition-colors text-sm"
           >
             Batal

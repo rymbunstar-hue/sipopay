@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -7,17 +7,19 @@ import {
   Syringe, 
   HeartPulse, 
   FileText, 
-  Settings, 
   LogOut,
   Menu,
   X,
   Bell,
-  Search
+  Search,
+  Activity,
+  CalendarDays
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, role, signOut } = useAuthStore();
@@ -28,12 +30,14 @@ export default function DashboardLayout() {
   };
 
   const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['kader', 'bidan', 'admin'] },
-    { name: 'Data Peserta', path: '/peserta', icon: Users, roles: ['kader', 'bidan', 'admin'] },
-    { name: 'Posyandu Balita', path: '/balita', icon: Baby, roles: ['kader', 'bidan', 'admin'] },
-    { name: 'Imunisasi', path: '/imunisasi', icon: Syringe, roles: ['bidan', 'admin'] },
-    { name: 'Ibu Hamil', path: '/bumil', icon: HeartPulse, roles: ['bidan', 'admin'] },
-    { name: 'Laporan', path: '/laporan', icon: FileText, roles: ['kader', 'bidan', 'admin'] },
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['kader', 'bidan', 'admin_desa', 'super_admin'] },
+    { name: 'Jadwal Posyandu', path: '/jadwal', icon: CalendarDays, roles: ['kader', 'bidan', 'admin_desa', 'super_admin'] },
+    { name: 'Data Kader', path: '/kader', icon: Users, roles: ['kader', 'bidan', 'admin_desa', 'super_admin'] },
+    { name: 'Posyandu Balita', path: '/balita', icon: Baby, roles: ['kader', 'bidan', 'admin_desa', 'super_admin'] },
+    { name: 'Imunisasi', path: '/imunisasi', icon: Syringe, roles: ['bidan'] },
+    { name: 'Ibu Hamil', path: '/bumil', icon: HeartPulse, roles: ['kader', 'bidan', 'admin_desa', 'super_admin'] },
+    { name: 'Posyandu Lansia', path: '/lansia', icon: Activity, roles: ['kader', 'bidan', 'admin_desa', 'super_admin'] },
+    { name: 'Laporan', path: '/laporan', icon: FileText, roles: ['kader', 'bidan', 'admin_desa', 'super_admin'] },
   ];
 
   const filteredNavItems = navItems.filter(item => !role || item.roles.includes(role));
@@ -81,7 +85,7 @@ export default function DashboardLayout() {
             </div>
             <div>
               <p className="text-sm font-medium truncate w-40">{user?.email}</p>
-              <p className="text-xs text-gov-green-light capitalize">{role || 'Pengguna'}</p>
+              <p className="text-xs text-gov-green-light">{role ? role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Pengguna'}</p>
             </div>
           </div>
         </div>
@@ -150,23 +154,68 @@ export default function DashboardLayout() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 sm:gap-6">
-            <button className="p-2 text-gray-400 hover:text-gov-green relative">
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full border border-white"></span>
-              <Bell className="h-6 w-6" />
-            </button>
+          <div className="flex items-center gap-4 sm:gap-6 relative">
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="p-2 text-gray-400 hover:text-gov-green relative focus:outline-none transition-colors rounded-lg hover:bg-gray-100"
+              >
+                <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full border border-white"></span>
+                <Bell className="h-6 w-6" />
+              </button>
+              
+              {showNotifications && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowNotifications(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="px-4 py-2 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+                      <span className="font-semibold text-sm text-gray-900">Notifikasi Baru</span>
+                      <span className="text-xs font-semibold text-gov-green bg-gov-green/10 px-2 py-0.5 rounded-full">3 Baru</span>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
+                      <div className="p-4 hover:bg-gray-50/70 transition-colors cursor-pointer">
+                        <p className="text-xs text-gov-green font-semibold mb-1">Jadwal Operasional</p>
+                        <p className="text-sm text-gray-700 font-medium">Jadwal Posyandu Sukasenang direncanakan besok pagi pukul 08.00 WIB.</p>
+                        <p className="text-[10px] text-gray-400 mt-2">1 jam yang lalu</p>
+                      </div>
+                      <div className="p-4 hover:bg-gray-50/70 transition-colors cursor-pointer">
+                        <p className="text-xs text-orange-600 font-semibold mb-1">Peringatan Imunisasi</p>
+                        <p className="text-sm text-gray-700 font-medium">Imunisasi DPT-HB-Hib 1 untuk balita Anindita Larasati belum tercatat.</p>
+                        <p className="text-[10px] text-gray-400 mt-2">3 jam yang lalu</p>
+                      </div>
+                      <div className="p-4 hover:bg-gray-50/70 transition-colors cursor-pointer">
+                        <p className="text-xs text-red-600 font-semibold mb-1">Status KEK Bumil</p>
+                        <p className="text-sm text-gray-700 font-medium">2 ibu hamil di wilayah Kp. Cikadu terdeteksi memiliki status KEK.</p>
+                        <p className="text-[10px] text-gray-400 mt-2">1 hari yang lalu</p>
+                      </div>
+                    </div>
+                    <div className="p-2 border-t border-gray-100 text-center">
+                      <button 
+                        onClick={() => setShowNotifications(false)}
+                        className="text-xs text-gov-green font-semibold hover:text-gov-green-dark transition-colors py-1 w-full"
+                      >
+                        Tandai semua telah dibaca
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             
             <div className="hidden sm:flex items-center gap-3 pl-6 border-l border-gray-200">
               <div className="text-right">
                 <p className="text-sm font-semibold text-gray-900 truncate max-w-[150px]">
-                  {user?.email?.split('@')[0] || 'Kader'}
+                  {user?.user_metadata?.nama || user?.email?.split('@')[0] || 'Kader'}
                 </p>
                 <p className="text-xs text-gov-green font-medium capitalize">
-                  {role || 'Bidan Desa'}
+                  {role ? role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Kader'}
                 </p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-gov-green-light border border-gov-green/20 flex items-center justify-center font-bold text-gov-green">
-                {user?.email?.charAt(0).toUpperCase() || 'K'}
+              <div className="h-10 w-10 rounded-full bg-gov-green-light border border-gov-green/20 flex items-center justify-center font-bold text-gov-green uppercase">
+                {user?.user_metadata?.nama?.charAt(0) || user?.email?.charAt(0) || 'K'}
               </div>
             </div>
           </div>

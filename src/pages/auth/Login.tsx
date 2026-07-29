@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useAuthStore } from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
-import { Shield, User, Lock, ArrowRight, Activity, Users } from 'lucide-react';
+import { Shield, User, Lock, ArrowRight, Activity, Users, Eye, EyeOff, Info } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showForgotInfo, setShowForgotInfo] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -18,21 +20,61 @@ export default function Login() {
     setError(null);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+      // 1. DEMO BYPASS UTAMA (Ketua Kader)
+      if (email === '12345' && password === 'demo') {
+        const { setUser, setRole, setSession } = useAuthStore.getState();
+        const mockUser = {
+          id: 'demo-admin-id',
+          email: '12345@sipopay.local',
+          user_metadata: { nama: 'Ketua Kader Demo', username: '12345', role: 'admin_desa' }
+        } as any;
+        setUser(mockUser);
+        setRole('admin_desa');
+        setSession({ user: mockUser, access_token: 'demo' } as any);
+        
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 500);
+        return;
+      }
+
+      // 2. CEK LOCALSTORAGE (Untuk kader yang baru dibuat secara lokal)
+      const localUsers = JSON.parse(localStorage.getItem('demo_users') || '{}');
+      if (localUsers[email] && localUsers[email].password === password) {
+        const { setUser, setRole, setSession } = useAuthStore.getState();
+        const userData = localUsers[email];
+        const mockUser = {
+          id: `demo-${email}`,
+          email: `${email}@sipopay.local`,
+          user_metadata: { nama: userData.nama, username: email, role: userData.role }
+        } as any;
+        setUser(mockUser);
+        setRole(userData.role);
+        setSession({ user: mockUser, access_token: 'demo' } as any);
+        
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 500);
+        return;
+      }
+
+      // Ubah 5 digit NIK menjadi format email Supabase
+      const supabaseEmail = `${email}@sipopay.local`;
+      const { error } = await supabase.auth.signInWithPassword({
+        email: supabaseEmail,
         password,
       });
 
       if (error) throw error;
-      
-      // Zustand will automatically pick this up due to onAuthStateChange,
-      // but we can navigate after a short delay to ensure state is updated
+
+      // onAuthStateChange di authStore akan menangani update state,
+      // navigate setelah delay singkat agar state sempat terupdate
       setTimeout(() => {
         navigate('/dashboard');
       }, 500);
-      
+
     } catch (err: any) {
-      setError(err.message || 'Gagal login. Periksa kembali email dan password Anda.');
+      setError('NIK atau password salah. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
@@ -104,72 +146,108 @@ export default function Login() {
               </div>
             )}
 
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 ml-1">Email / NIK</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400" />
+            {showForgotInfo ? (
+              <div className="space-y-6">
+                <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl text-center">
+                  <div className="flex justify-center mb-3">
+                    <div className="bg-amber-100 p-3 rounded-full">
+                      <Info className="h-6 w-6 text-amber-600" />
+                    </div>
                   </div>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-all duration-200"
-                    placeholder="Masukkan email atau NIK"
-                  />
+                  <p className="text-sm font-bold text-amber-800 mb-2">Lupa Password?</p>
+                  <p className="text-sm text-amber-700 leading-relaxed">
+                    Silakan hubungi <span className="font-bold">Ketua Kader Posyandu</span> untuk mengetahui password Anda.
+                  </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotInfo(false)}
+                  className="w-full py-3.5 px-4 border border-gray-200 text-sm font-bold rounded-xl text-gray-700 bg-gray-50 hover:bg-gray-100 transition-all duration-200"
+                >
+                  ← Kembali ke Login
+                </button>
               </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between ml-1">
-                  <label className="text-sm font-semibold text-gray-700">Password</label>
-                  <a href="#" className="text-sm font-medium text-gov-green hover:text-gov-green-dark transition-colors">Lupa sandi?</a>
-                </div>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+            ) : (
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 ml-1">NIK</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={5}
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value.replace(/\D/g, ''))}
+                      className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-all duration-200"
+                      placeholder="Masukkan 5 digit terakhir NIK"
+                    />
                   </div>
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-all duration-200"
-                    placeholder="••••••••"
-                  />
+                  <p className="text-xs text-gray-500 mt-1 ml-1">Masukkan 5 digit terakhir NIK Anda.</p>
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="group relative w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-gov-green hover:bg-gov-green-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gov-green transition-all duration-200 shadow-lg shadow-gov-green/30 disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Memproses...
-                  </span>
-                ) : (
-                  <>
-                    Masuk ke Sistem
-                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            </form>
-            
-            <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-              <p className="text-xs text-gray-500">
-                Pemerintah Desa Sukasenang <br/>
-                Kecamatan Tanjungjaya, Kabupaten Tasikmalaya
-              </p>
-            </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between ml-1">
+                    <label className="text-sm font-semibold text-gray-700">Password</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotInfo(true)}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-1"
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                      Lupa sandi?
+                    </button>
+                  </div>
+                  
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="block w-full pl-11 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-all duration-200"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(v => !v)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="group relative w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-gov-green hover:bg-gov-green-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gov-green transition-all duration-200 shadow-lg shadow-gov-green/30 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Memproses...
+                    </span>
+                  ) : (
+                    <>
+                      Masuk ke Sistem
+                      <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
           </div>
         </div>
       </div>

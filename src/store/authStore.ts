@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { User, Session } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
 interface AuthState {
@@ -36,12 +36,12 @@ export const useAuthStore = create<AuthState>((set) => ({
         // Fetch role from profiles
         const { data: profile } = await supabase
           .from('profiles')
-          .select('peran')
+          .select('role')
           .eq('id', session.user.id)
           .single();
           
         if (profile) {
-          set({ role: profile.peran });
+          set({ role: profile.role });
         }
       }
     } catch (error) {
@@ -51,18 +51,18 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     
     // Listen for auth changes
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.onAuthStateChange(async (_event, session) => {
       set({ session, user: session?.user || null });
       
       if (session?.user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('peran')
+          .select('role')
           .eq('id', session.user.id)
           .single();
           
         if (profile) {
-          set({ role: profile.peran });
+          set({ role: profile.role });
         }
       } else {
         set({ role: null });

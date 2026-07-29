@@ -32,7 +32,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
 
   if (allowedRoles && role && !allowedRoles.includes(role)) {
     // User role not authorized for this route
-    return <Navigate to="/unauthorized" replace />;
+    return <Navigate to="/403" replace />;
   }
 
   return <>{children}</>;
