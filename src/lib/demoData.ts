@@ -1,9 +1,7 @@
 // Data dummy untuk mode demo (login sebagai demo@sipopay.com)
 // Digunakan agar tampilan halaman tetap berjalan tanpa koneksi Supabase sungguhan
 
-export const DEMO_EMAILS = {
-  includes: () => true
-} as any;
+export const DEMO_EMAILS = ['demo@sipopay.com', 'admin@sipopay.com'];
 
 export const demoPeserta = [
   {
