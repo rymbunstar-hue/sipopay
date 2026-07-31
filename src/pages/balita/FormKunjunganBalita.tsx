@@ -4,9 +4,6 @@ import { ArrowLeft, Save, Scale, Ruler, Activity, Baby, Search, X, ChevronDown }
 import { supabase } from '../../lib/supabase';
 
 import { useAuthStore } from '../../store/authStore';
-import { DEMO_EMAILS, demoPeserta, demoKunjunganBalita } from '../../lib/demoData';
-
-const KUNJUNGAN_KEY = 'demo_kunjungan_balita';
 
 // ── Searchable Combobox Component ──────────────────────────────────────────
 interface ComboboxOption { id: string; nama: string; nik?: string | null; }
@@ -157,12 +154,6 @@ export default function FormKunjunganBalita() {
 
   useEffect(() => {
     const fetchPeserta = async () => {
-      // Demo mode: gunakan data dummy
-      if (DEMO_EMAILS.includes(user?.email || '')) {
-        const balitaDemo = demoPeserta.filter(p => p.kategori === 'balita');
-        setPesertaList(balitaDemo);
-        return;
-      }
 
       const { data } = await supabase
         .from('peserta')
@@ -190,41 +181,6 @@ export default function FormKunjunganBalita() {
     setLoading(true);
 
     try {
-      // --- DEMO MODE BYPASS ---
-      if (DEMO_EMAILS.includes(user?.email || '')) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        // Cari data peserta yg dipilih
-        const selectedPeserta = pesertaList.find((p: any) => p.id === formData.peserta_id);
-        const newKunjungan = {
-          id: `kunjungan-${Date.now()}`,
-          tanggal: formData.tanggal_kunjungan,
-          berat_badan: parseFloat(formData.berat_badan),
-          tinggi_badan: parseFloat(formData.tinggi_badan),
-          lingkar_kepala: formData.lingkar_kepala ? parseFloat(formData.lingkar_kepala) : null,
-          lingkar_lengan: formData.lingkar_lengan ? parseFloat(formData.lingkar_lengan) : null,
-          stunting_status: 'normal',
-          status_gizi_bbu: 'Normal',
-          catatan: formData.catatan_kader || null,
-          peserta: {
-            nama: selectedPeserta?.nama || 'Tidak diketahui',
-            nama_ibu: selectedPeserta?.nama_ibu || '-',
-          },
-        };
-
-        // Simpan ke localStorage agar muncul di riwayat
-        const saved = localStorage.getItem(KUNJUNGAN_KEY);
-        const existing = saved ? JSON.parse(saved) : [...demoKunjunganBalita];
-        const updated = [newKunjungan, ...existing];
-        localStorage.setItem(KUNJUNGAN_KEY, JSON.stringify(updated));
-        // Update in-memory array juga
-        demoKunjunganBalita.unshift(newKunjungan as any);
-
-        alert('Kunjungan berhasil disimpan!');
-        navigate('/balita');
-        return;
-      }
-      // ------------------------
 
       const kunjunganData = {
         peserta_id: formData.peserta_id,

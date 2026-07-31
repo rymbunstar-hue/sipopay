@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, HeartPulse, Scale, Stethoscope, Pill } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { DEMO_EMAILS, demoPeserta } from '../../lib/demoData';
 import { useAuthStore } from '../../store/authStore';
 
 export default function FormIbuHamil() {
@@ -30,12 +29,6 @@ export default function FormIbuHamil() {
 
   useEffect(() => {
     const fetchPeserta = async () => {
-      // Demo mode: load from demoPeserta
-      if (DEMO_EMAILS.includes(user?.email || '')) {
-        const bumilDemo = demoPeserta.filter(p => p.kategori === 'ibu_hamil');
-        setPesertaList(bumilDemo);
-        return;
-      }
 
       const { data } = await supabase
         .from('peserta')
@@ -82,28 +75,6 @@ export default function FormIbuHamil() {
     setLoading(true);
 
     try {
-      if (DEMO_EMAILS.includes(user?.email || '')) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        // Simpan ke localStorage agar muncul di riwayat
-        const selectedPeserta = pesertaList.find((p: any) => p.id === formData.peserta_id);
-        const newKunjungan = {
-          id: `bumil-${Date.now()}`,
-          tanggal: formData.tanggal,
-          usia_kehamilan: parseInt(formData.usia_kehamilan) || 0,
-          berat_badan: parseFloat(formData.berat_badan) || 0,
-          tekanan_darah: formData.tekanan_darah,
-          status_risiko: formData.status_risiko,
-          status_kek: formData.status_kek,
-          peserta: { nama: selectedPeserta?.nama || 'Tidak diketahui', nik: selectedPeserta?.nik || '-' },
-        };
-        const saved = localStorage.getItem('demo_kunjungan_bumil');
-        const { demoKunjunganBumil } = await import('../../lib/demoData');
-        const existing = saved ? JSON.parse(saved) : [...demoKunjunganBumil];
-        localStorage.setItem('demo_kunjungan_bumil', JSON.stringify([newKunjungan, ...existing]));
-        alert('Data ibu hamil berhasil disimpan!');
-        navigate('/bumil');
-        return;
-      }
 
       const payload = {
         ...formData,

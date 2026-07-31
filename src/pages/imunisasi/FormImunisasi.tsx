@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Syringe, User, Calendar } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { DEMO_EMAILS } from '../../lib/demoData';
 import { useAuthStore } from '../../store/authStore';
 
 const JENIS_VAKSIN_OPTIONS = [
@@ -53,11 +52,6 @@ export default function FormImunisasi() {
     setLoading(true);
 
     try {
-      if (DEMO_EMAILS.includes(user?.email || '')) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        navigate('/imunisasi');
-        return;
-      }
 
       const { error } = await supabase.from('imunisasi').insert([{
         ...formData,

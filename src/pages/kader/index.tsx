@@ -48,20 +48,7 @@ export default function DataKader() {
         return;
       }
     } catch (err) {
-      console.warn('Gagal koneksi Supabase, menggunakan data lokal.');
-      // Gunakan localstorage sebagai fallback
-      const localUsers = JSON.parse(localStorage.getItem('demo_users') || '{}');
-      const localKader = Object.entries(localUsers)
-        .filter(([_, data]: any) => data.role === 'kader')
-        .map(([nik, data]: any) => ({
-          id: `k-${nik}`,
-          full_name: data.nama,
-          role: data.role,
-          phone: data.phone || '-',
-          assigned_posyandu: data.posyandu || '-',
-          nik_5: nik,
-        }));
-      setKaderList(localKader);
+      console.warn('Gagal memuat data kader dari Supabase.');
     } finally {
       setLoading(false);
     }
@@ -269,10 +256,12 @@ function TambahKaderModal({ onClose, onSuccess, existingNiks }: TambahKaderModal
   const [success, setSuccess] = useState(false);
 
   const POSYANDU_OPTIONS = [
-    'Posyandu Mawar — Kp. Cililin',
-    'Posyandu Melati — Kp. Bebedahan',
-    'Posyandu Kenanga — Kp. Citundun',
-    'Posyandu Dahlia — Kp. Bojong',
+    'Posyandu Bojong',
+    'Posyandu Leuwiceri',
+    'Posyandu Panonjer',
+    'Posyandu Bebedahan',
+    'Posyandu Cideeng',
+    'Posyandu Citundun',
   ];
 
   const validate = (): string | null => {
@@ -298,10 +287,6 @@ function TambahKaderModal({ onClose, onSuccess, existingNiks }: TambahKaderModal
     setSubmitting(true);
 
     try {
-      // Simpan ke localstorage sebagai fallback offline / demo
-      const localUsers = JSON.parse(localStorage.getItem('demo_users') || '{}');
-      localUsers[nik5] = { password, role: 'kader', nama: nama.trim(), phone: phone.trim(), posyandu };
-      localStorage.setItem('demo_users', JSON.stringify(localUsers));
 
       // Production mode: Create Supabase auth user
       // Email format: {5digitNIK}@sipopay.local
@@ -546,10 +531,12 @@ function EditKaderModal({ kader, onClose, onSuccess }: EditKaderModalProps) {
   const [error, setError] = useState<string | null>(null);
 
   const POSYANDU_OPTIONS = [
-    'Posyandu Mawar — Kp. Cililin',
-    'Posyandu Melati — Kp. Bebedahan',
-    'Posyandu Kenanga — Kp. Citundun',
-    'Posyandu Dahlia — Kp. Bojong',
+    'Posyandu Bojong',
+    'Posyandu Leuwiceri',
+    'Posyandu Panonjer',
+    'Posyandu Bebedahan',
+    'Posyandu Cideeng',
+    'Posyandu Citundun',
   ];
 
   const validate = (): string | null => {

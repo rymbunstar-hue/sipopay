@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { Shield, User, Lock, ArrowRight, Activity, Users, Eye, EyeOff, Info } from 'lucide-react';
-import { useAuthStore } from '../../store/authStore';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -20,44 +19,6 @@ export default function Login() {
     setError(null);
 
     try {
-      // 1. DEMO BYPASS UTAMA (Ketua Kader)
-      if (email === '12345' && password === 'demo') {
-        const { setUser, setRole, setSession } = useAuthStore.getState();
-        const mockUser = {
-          id: 'demo-admin-id',
-          email: '12345@sipopay.local',
-          user_metadata: { nama: 'Ketua Kader Demo', username: '12345', role: 'admin_desa' }
-        } as any;
-        setUser(mockUser);
-        setRole('admin_desa');
-        setSession({ user: mockUser, access_token: 'demo' } as any);
-        
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 500);
-        return;
-      }
-
-      // 2. CEK LOCALSTORAGE (Untuk kader yang baru dibuat secara lokal)
-      const localUsers = JSON.parse(localStorage.getItem('demo_users') || '{}');
-      if (localUsers[email] && localUsers[email].password === password) {
-        const { setUser, setRole, setSession } = useAuthStore.getState();
-        const userData = localUsers[email];
-        const mockUser = {
-          id: `demo-${email}`,
-          email: `${email}@sipopay.local`,
-          user_metadata: { nama: userData.nama, username: email, role: userData.role }
-        } as any;
-        setUser(mockUser);
-        setRole(userData.role);
-        setSession({ user: mockUser, access_token: 'demo' } as any);
-        
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 500);
-        return;
-      }
-
       // Ubah 5 digit NIK menjadi format email Supabase
       const supabaseEmail = `${email}@sipopay.local`;
       const { error } = await supabase.auth.signInWithPassword({

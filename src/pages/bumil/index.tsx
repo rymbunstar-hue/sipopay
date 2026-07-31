@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Search, Plus, HeartPulse, AlertTriangle, Stethoscope, CalendarDays } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { DEMO_EMAILS, demoKunjunganBumil } from '../../lib/demoData';
 
 interface KunjunganBumil {
   id: string;
@@ -30,18 +29,6 @@ export default function DataIbuHamil() {
       try {
         setLoading(true);
 
-        // Demo mode: tampilkan data dummy + data baru
-        if (DEMO_EMAILS.includes(user?.email || '')) {
-          await new Promise(r => setTimeout(r, 500));
-          const saved = localStorage.getItem('demo_kunjungan_bumil');
-          if (saved) {
-            setData(JSON.parse(saved));
-          } else {
-            setData(demoKunjunganBumil as any);
-          }
-          setLoading(false);
-          return;
-        }
 
         const { data: kunjungan, error } = await supabase
           .from('kunjungan_ibu_hamil')

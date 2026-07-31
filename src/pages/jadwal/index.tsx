@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { Calendar, Plus, X, Save, Clock, MapPin, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { DEMO_EMAILS, demoSesiPosyandu } from '../../lib/demoData';
-
 const LOKASI_POSYANDU = [
-  { id: 'pos-1', nama: 'Posyandu Mawar — Kp. Cililin' },
-  { id: 'pos-2', nama: 'Posyandu Melati — Kp. Bebedahan' },
-  { id: 'pos-3', nama: 'Posyandu Kenanga — Kp. Citundun' },
-  { id: 'pos-4', nama: 'Posyandu Dahlia — Kp. Bojong' },
+  { id: 'pos-1', nama: 'Posyandu Bojong' },
+  { id: 'pos-2', nama: 'Posyandu Leuwiceri' },
+  { id: 'pos-3', nama: 'Posyandu Panonjer' },
+  { id: 'pos-4', nama: 'Posyandu Bebedahan' },
+  { id: 'pos-5', nama: 'Posyandu Cideeng' },
+  { id: 'pos-6', nama: 'Posyandu Citundun' },
 ];
 
 export default function JadwalPosyandu() {
@@ -20,7 +20,7 @@ export default function JadwalPosyandu() {
 
   const [formData, setFormData] = useState({
     tanggal: new Date().toISOString().split('T')[0],
-    tempat: 'Posyandu Mawar — Kp. Cililin',
+    tempat: 'Posyandu Bojong',
     jam_mulai: '08:00',
     catatan: '',
   });
@@ -32,13 +32,6 @@ export default function JadwalPosyandu() {
   const fetchSessions = async () => {
     setLoadingSessions(true);
     try {
-      if (DEMO_EMAILS.includes(user?.email || '')) {
-        await new Promise(r => setTimeout(r, 400));
-        setSessions([...demoSesiPosyandu]);
-        setLoadingSessions(false);
-        return;
-      }
-
       const { data, error } = await supabase
         .from('sesi_posyandu')
         .select('*')
@@ -60,24 +53,6 @@ export default function JadwalPosyandu() {
     setSubmitLoading(true);
 
     try {
-      if (DEMO_EMAILS.includes(user?.email || '')) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        const mockNew = {
-          id: `sesi-${Date.now()}`,
-          tanggal: formData.tanggal,
-          tempat: formData.tempat,
-          jam_mulai: formData.jam_mulai,
-          catatan: formData.catatan,
-          status: 'aktif',
-          created_at: new Date().toISOString(),
-        };
-        demoSesiPosyandu.unshift(mockNew);
-        setSessions(prev => [mockNew, ...prev]);
-        setShowModal(false);
-        setFormData({ tanggal: new Date().toISOString().split('T')[0], tempat: 'Posyandu Mawar — Kp. Cililin', jam_mulai: '08:00', catatan: '' });
-        return;
-      }
-
       let posyanduId = '00000000-0000-0000-0000-000000000000';
       const { data: posyandus } = await supabase.from('posyandu').select('id').limit(1);
       if (posyandus && posyandus.length > 0) {
@@ -106,7 +81,7 @@ export default function JadwalPosyandu() {
 
       fetchSessions();
       setShowModal(false);
-      setFormData({ tanggal: new Date().toISOString().split('T')[0], tempat: 'Posyandu Mawar — Kp. Cililin', jam_mulai: '08:00', catatan: '' });
+      setFormData({ tanggal: new Date().toISOString().split('T')[0], tempat: 'Posyandu Bojong', jam_mulai: '08:00', catatan: '' });
     } catch (err) {
       console.error(err);
       alert('Gagal menjadwalkan sesi posyandu baru.');

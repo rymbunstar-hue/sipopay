@@ -4,8 +4,6 @@ import { ArrowLeft, Save, Scale, Activity, HeartPulse, Search, X, ChevronDown } 
 import { supabase } from '../../lib/supabase';
 
 import { useAuthStore } from '../../store/authStore';
-import { DEMO_EMAILS, demoPeserta } from '../../lib/demoData';
-
 // ── Searchable Combobox Component ──────────────────────────────────────────
 interface ComboboxOption { id: string; nama: string; nik?: string | null; }
 
@@ -152,12 +150,6 @@ export default function FormKunjunganLansia() {
 
   useEffect(() => {
     const fetchPeserta = async () => {
-      // Demo mode
-      if (DEMO_EMAILS.includes(user?.email || '')) {
-        const lansiaDemo = demoPeserta.filter(p => p.kategori === 'lansia');
-        setPesertaList(lansiaDemo);
-        return;
-      }
 
       const { data } = await supabase
         .from('peserta')
@@ -185,30 +177,6 @@ export default function FormKunjunganLansia() {
     setLoading(true);
 
     try {
-      // --- DEMO MODE BYPASS ---
-      if (DEMO_EMAILS.includes(user?.email || '')) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        const selectedPeserta = pesertaList.find((p: any) => p.id === formData.peserta_id);
-        const newKunjungan = {
-          id: `lansia-${Date.now()}`,
-          tanggal: formData.tanggal_kunjungan,
-          berat_badan: parseFloat(formData.berat_badan) || 0,
-          tekanan_darah: formData.tekanan_darah,
-          gula_darah: formData.gula_darah ? parseInt(formData.gula_darah) : null,
-          kolesterol: formData.kolesterol ? parseInt(formData.kolesterol) : null,
-          asam_urat: formData.asam_urat ? parseFloat(formData.asam_urat) : null,
-          keluhan: formData.keluhan || null,
-          peserta: { nama: selectedPeserta?.nama || 'Tidak diketahui', nik: selectedPeserta?.nik || '-' },
-        };
-        const saved = localStorage.getItem('demo_kunjungan_lansia');
-        const { demoKunjunganLansia } = await import('../../lib/demoData');
-        const existing = saved ? JSON.parse(saved) : [...demoKunjunganLansia];
-        localStorage.setItem('demo_kunjungan_lansia', JSON.stringify([newKunjungan, ...existing]));
-        alert('Data lansia berhasil disimpan!');
-        navigate('/lansia');
-        return;
-      }
-      // ------------------------
 
       const kunjunganData = {
         peserta_id: formData.peserta_id,

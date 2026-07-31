@@ -1,18 +1,35 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Plus, Syringe, ShieldCheck } from 'lucide-react';
-import { demoImunisasi } from '../../lib/demoData';
+import { supabase } from '../../lib/supabase';
 
 export default function DataImunisasi() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Tampilkan data imunisasi dummy (demo mode)
-    setTimeout(() => {
-      setData(demoImunisasi);
-      setLoading(false);
-    }, 400);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const { data: result, error } = await supabase
+          .from('imunisasi')
+          .select(`
+            *,
+            peserta (nama, nik),
+            profiles (nama)
+          `)
+          .order('tanggal', { ascending: false });
+        
+        if (!error && result) {
+          setData(result);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
 
   return (
@@ -91,17 +108,17 @@ export default function DataImunisasi() {
                       {new Date(item.tanggal).toLocaleDateString('id-ID')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{item.nama_balita}</div>
+                      <div className="text-sm font-medium text-gray-900">{item.peserta?.nama || '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {item.vaksin}
+                      {item.jenis_vaksin}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {item.petugas}
+                      {item.profiles?.nama || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        {item.status}
+                        Selesai
                       </span>
                     </td>
                   </tr>

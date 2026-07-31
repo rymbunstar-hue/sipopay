@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Search, Plus, Activity, HeartPulse, Calendar } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { DEMO_EMAILS, demoKunjunganLansia } from '../../lib/demoData';
 
 export default function PosyanduLansia() {
   const [data, setData] = useState<any[]>([]);
@@ -16,18 +15,6 @@ export default function PosyanduLansia() {
       try {
         setLoading(true);
 
-        // Demo mode: tampilkan data dummy + data baru
-        if (DEMO_EMAILS.includes(user?.email || '')) {
-          await new Promise(r => setTimeout(r, 500));
-          const saved = localStorage.getItem('demo_kunjungan_lansia');
-          if (saved) {
-            setData(JSON.parse(saved));
-          } else {
-            setData(demoKunjunganLansia as any);
-          }
-          setLoading(false);
-          return;
-        }
 
         const { data, error } = await supabase
           .from('kunjungan_lansia')

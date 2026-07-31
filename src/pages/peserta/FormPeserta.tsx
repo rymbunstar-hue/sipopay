@@ -2,15 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, User, Calendar, MapPin, Users, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { useAuthStore } from '../../store/authStore';
-import { DEMO_EMAILS, demoPeserta } from '../../lib/demoData';
 
 export default function FormPeserta() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const { user } = useAuthStore();
   
   const defaultCategory = searchParams.get('kategori') || 'Balita';
   const redirectPath = searchParams.get('redirect') || '/kader';
@@ -39,26 +36,6 @@ export default function FormPeserta() {
     setLoading(true);
 
     try {
-      // --- DEMO MODE BYPASS ---
-      if (DEMO_EMAILS.includes(user?.email || '')) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        // Tambahkan ke list demo agar muncul di halaman peserta
-        demoPeserta.unshift({
-          id: `demo-${Date.now()}`,
-          nik: formData.nik || '-',
-          nama: formData.nama_lengkap,
-          jenis_kelamin: formData.jenis_kelamin,
-          tanggal_lahir: formData.tanggal_lahir,
-          kategori: formData.kategori === 'Balita' ? 'balita' : formData.kategori === 'Ibu Hamil' ? 'ibu_hamil' : 'lansia',
-          nama_ibu: formData.nama_ibu || null,
-          created_at: new Date().toISOString(),
-        });
-        setSuccess(true);
-        setTimeout(() => navigate(redirectPath), 1500);
-        return;
-      }
-      // ------------------------
-
       const categoryMapping: Record<string, string> = {
         'Balita': 'balita',
         'Ibu Hamil': 'ibu_hamil',

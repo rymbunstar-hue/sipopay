@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Search, Plus, Activity, Baby, Calendar } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { DEMO_EMAILS, demoKunjunganBalita } from '../../lib/demoData';
 
 export default function PosyanduBalita() {
   const [data, setData] = useState<any[]>([]);
@@ -16,18 +15,7 @@ export default function PosyanduBalita() {
       try {
         setLoading(true);
 
-        // Demo mode: tampilkan data dummy + data baru dari localStorage
-        if (DEMO_EMAILS.includes(user?.email || '')) {
-          await new Promise(r => setTimeout(r, 500));
-          const saved = localStorage.getItem('demo_kunjungan_balita');
-          if (saved) {
-            setData(JSON.parse(saved));
-          } else {
-            setData(demoKunjunganBalita as any);
-          }
-          setLoading(false);
-          return;
-        }
+
 
         const { data, error } = await supabase
           .from('kunjungan_balita')
