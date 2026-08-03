@@ -2,14 +2,6 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { Calendar, Plus, X, Save, Clock, MapPin, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-const LOKASI_POSYANDU = [
-  { id: 'pos-1', nama: 'Posyandu Bojong' },
-  { id: 'pos-2', nama: 'Posyandu Leuwiceri' },
-  { id: 'pos-3', nama: 'Posyandu Panonjer' },
-  { id: 'pos-4', nama: 'Posyandu Bebedahan' },
-  { id: 'pos-5', nama: 'Posyandu Cideeng' },
-  { id: 'pos-6', nama: 'Posyandu Citundun' },
-];
 
 export default function JadwalPosyandu() {
   const { user } = useAuthStore();
