@@ -7,17 +7,23 @@ import { useAuthStore } from '../../store/authStore';
 export default function PosyanduBalita() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [kunjunganBulanIni, setKunjunganBulanIni] = useState(0);
+  const [stuntingBulanIni, setStuntingBulanIni] = useState(0);
 
   const { user } = useAuthStore();
 
   useEffect(() => {
-    const fetchKunjungan = async () => {
+    const fetchAll = async () => {
       try {
         setLoading(true);
+        setStatsLoading(true);
 
+        const now = new Date();
+        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
 
-
-        const { data, error } = await supabase
+        // Fetch kunjungan list
+        const { data: kunjunganData, error } = await supabase
           .from('kunjungan_balita')
           .select(`
             *,
@@ -26,17 +32,33 @@ export default function PosyanduBalita() {
           .order('tanggal', { ascending: false })
           .limit(20);
           
-        if (!error && data) {
-          setData(data);
+        if (!error && kunjunganData) {
+          setData(kunjunganData);
         }
+
+        // Fetch stats bulan ini
+        const { count: kunjunganCount } = await supabase
+          .from('kunjungan_balita')
+          .select('*', { count: 'exact', head: true })
+          .gte('tanggal', firstOfMonth);
+
+        const { count: stuntingCount } = await supabase
+          .from('kunjungan_balita')
+          .select('*', { count: 'exact', head: true })
+          .gte('tanggal', firstOfMonth)
+          .in('stunting_status', ['stunted', 'severely_stunted']);
+
+        setKunjunganBulanIni(kunjunganCount || 0);
+        setStuntingBulanIni(stuntingCount || 0);
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
+        setStatsLoading(false);
       }
     };
     
-    fetchKunjungan();
+    fetchAll();
   }, [user]);
 
   return (
@@ -75,7 +97,10 @@ export default function PosyanduBalita() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Bulan Ini</p>
-            <h3 className="text-2xl font-bold text-gray-900">42 <span className="text-sm font-normal text-gray-500">Kunjungan</span></h3>
+            <h3 className="text-2xl font-bold text-gray-900">
+              {statsLoading ? '...' : kunjunganBulanIni}{' '}
+              <span className="text-sm font-normal text-gray-500">Kunjungan</span>
+            </h3>
           </div>
         </div>
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4">
@@ -84,7 +109,10 @@ export default function PosyanduBalita() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Perlu Perhatian (Stunting)</p>
-            <h3 className="text-2xl font-bold text-gray-900">3 <span className="text-sm font-normal text-gray-500">Balita</span></h3>
+            <h3 className="text-2xl font-bold text-gray-900">
+              {statsLoading ? '...' : stuntingBulanIni}{' '}
+              <span className="text-sm font-normal text-gray-500">Balita</span>
+            </h3>
           </div>
         </div>
       </div>
