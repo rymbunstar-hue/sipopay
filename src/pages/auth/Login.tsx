@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Shield, User, Lock, ArrowRight, Activity, Users, Eye, EyeOff, Info } from 'lucide-react';
 
 export default function Login() {
@@ -35,7 +35,8 @@ export default function Login() {
       }, 500);
 
     } catch (err: any) {
-      setError('NIK atau password salah. Silakan coba lagi.');
+      console.error(err);
+      setError(err.message || 'NIK atau password salah. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
@@ -209,15 +210,6 @@ export default function Login() {
                 </button>
               </form>
             )}
-
-            <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-              <p className="text-sm text-gray-600">
-                Belum punya akun?{' '}
-                <Link to="/register" className="font-bold text-gov-green hover:text-gov-green-dark transition-colors">
-                  Daftar di sini
-                </Link>
-              </p>
-            </div>
           </div>
         </div>
       </div>
