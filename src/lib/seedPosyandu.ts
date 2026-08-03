@@ -37,20 +37,26 @@ export async function ensurePosyanduExists(): Promise<Record<string, string>> {
       return _posyanduMap;
     }
 
-    // 2. Cari yang belum ada, lalu insert
+    // 2. Cari yang belum ada berdasarkan nama, lalu insert satu per satu
     const existingNames = new Set(existing?.map(p => p.nama) || []);
     
     for (const pos of POSYANDU_LIST) {
       if (!existingNames.has(pos.nama)) {
-        const { data: inserted, error } = await supabase
+        // Cek sekali lagi by nama sebelum insert (extra safety)
+        const { data: check } = await supabase.from('posyandu').select('id').eq('nama', pos.nama).limit(1);
+        if (check && check.length > 0) {
+          existingNames.add(pos.nama);
+          continue;
+        }
+
+        const { error } = await supabase
           .from('posyandu')
           .insert([pos])
           .select('id, nama');
         
         if (error) {
           console.warn(`Gagal insert ${pos.nama}:`, error.message);
-          // Jangan throw, lanjut saja ke yang lain
-        } else if (inserted && inserted.length > 0) {
+        } else {
           existingNames.add(pos.nama);
         }
       }
