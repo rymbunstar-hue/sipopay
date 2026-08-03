@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 
 import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
 import DashboardLayout from './components/layout/DashboardLayout';
 import Dashboard from './pages/dashboard';
 import JadwalPosyandu from './pages/jadwal';
@@ -31,6 +32,7 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         
         {/* Protected Routes */}
         <Route path="/" element={

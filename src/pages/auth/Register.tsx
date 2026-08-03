@@ -1,41 +1,69 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate, Link } from 'react-router-dom';
-import { Shield, User, Lock, ArrowRight, Activity, Users, Eye, EyeOff, Info } from 'lucide-react';
+import { Shield, User, Lock, ArrowRight, Activity, Users, Eye, EyeOff, CheckCircle } from 'lucide-react';
 
-export default function Login() {
+export default function Register() {
+  const [nama, setNama] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showForgotInfo, setShowForgotInfo] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
+    // Validasi NIK harus 5 digit
+    if (email.length !== 5) {
+      setError('NIK harus terdiri dari 5 digit angka.');
+      setLoading(false);
+      return;
+    }
+    
+    // Validasi Password
+    if (password.length < 6) {
+      setError('Password minimal harus 6 karakter.');
+      setLoading(false);
+      return;
+    }
+
     try {
       // Ubah 5 digit NIK menjadi format email Supabase
       const supabaseEmail = `${email}@sipopay.local`;
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signUp({
         email: supabaseEmail,
         password,
+        options: {
+          data: {
+            nama: nama,
+            username: email, // NIK 5 digit sebagai username
+            role: 'masyarakat' // Role default untuk keamanan
+          }
+        }
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes('already registered')) {
+          throw new Error('NIK ini sudah terdaftar. Silakan login atau hubungi Admin.');
+        }
+        throw error;
+      }
 
-      // onAuthStateChange di authStore akan menangani update state,
-      // navigate setelah delay singkat agar state sempat terupdate
+      setSuccess(true);
+      
+      // Arahkan ke login setelah 3 detik
       setTimeout(() => {
-        navigate('/dashboard');
-      }, 500);
+        navigate('/login');
+      }, 3000);
 
     } catch (err: any) {
-      setError('NIK atau password salah. Silakan coba lagi.');
+      setError(err.message || 'Terjadi kesalahan saat mendaftar. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
@@ -65,7 +93,7 @@ export default function Login() {
               Digitalisasi Layanan<br />Kesehatan Desa
             </h2>
             <p className="text-gov-green-light text-lg max-w-md leading-relaxed">
-              Platform terpadu untuk kader posyandu dan bidan desa dalam memantau tumbuh kembang balita, ibu hamil, dan lansia secara real-time.
+              Daftar sekarang untuk memantau tumbuh kembang balita, ibu hamil, dan lansia secara real-time.
             </p>
           </div>
         </div>
@@ -82,9 +110,9 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right side - Login Form */}
-      <div className="w-full md:w-1/2 flex items-center justify-center p-8 sm:p-12">
-        <div className="w-full max-w-md">
+      {/* Right side - Register Form */}
+      <div className="w-full md:w-1/2 flex items-center justify-center p-8 sm:p-12 overflow-y-auto">
+        <div className="w-full max-w-md py-8">
           <div className="md:hidden flex items-center justify-center gap-3 mb-10">
             <div className="bg-gov-green p-3 rounded-2xl shadow-lg shadow-gov-green/20">
               <Activity className="h-8 w-8 text-white" />
@@ -96,8 +124,8 @@ export default function Login() {
 
           <div className="bg-white p-8 rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100">
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-gray-900">Selamat Datang</h2>
-              <p className="text-gray-500 mt-2 text-sm">Masuk ke akun Anda untuk melanjutkan akses.</p>
+              <h2 className="text-2xl font-bold text-gray-900">Buat Akun Baru</h2>
+              <p className="text-gray-500 mt-2 text-sm">Silakan isi formulir di bawah ini untuk mendaftar.</p>
             </div>
 
             {error && (
@@ -107,29 +135,42 @@ export default function Login() {
               </div>
             )}
 
-            {showForgotInfo ? (
+            {success ? (
               <div className="space-y-6">
-                <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl text-center">
+                <div className="p-5 bg-green-50 border border-green-200 rounded-2xl text-center">
                   <div className="flex justify-center mb-3">
-                    <div className="bg-amber-100 p-3 rounded-full">
-                      <Info className="h-6 w-6 text-amber-600" />
+                    <div className="bg-green-100 p-3 rounded-full">
+                      <CheckCircle className="h-8 w-8 text-green-600" />
                     </div>
                   </div>
-                  <p className="text-sm font-bold text-amber-800 mb-2">Lupa Password?</p>
-                  <p className="text-sm text-amber-700 leading-relaxed">
-                    Silakan hubungi <span className="font-bold">Ketua Kader Posyandu</span> untuk mengetahui password Anda.
+                  <h3 className="text-lg font-bold text-green-800 mb-2">Pendaftaran Berhasil!</h3>
+                  <p className="text-sm text-green-700 leading-relaxed mb-4">
+                    Akun Anda telah berhasil dibuat. Anda akan dialihkan ke halaman Login dalam beberapa detik.
+                  </p>
+                  <p className="text-xs text-green-600 bg-green-100/50 p-3 rounded-lg border border-green-200/50">
+                    <strong>Catatan:</strong> Akun baru Anda memiliki akses dasar. Jika Anda adalah Kader atau Admin, silakan hubungi Ketua untuk meningkatkan hak akses.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowForgotInfo(false)}
-                  className="w-full py-3.5 px-4 border border-gray-200 text-sm font-bold rounded-xl text-gray-700 bg-gray-50 hover:bg-gray-100 transition-all duration-200"
-                >
-                  ← Kembali ke Login
-                </button>
               </div>
             ) : (
-              <form onSubmit={handleLogin} className="space-y-6">
+              <form onSubmit={handleRegister} className="space-y-5">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 ml-1">Nama Lengkap</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={nama}
+                      onChange={(e) => setNama(e.target.value)}
+                      className="block w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-all duration-200"
+                      placeholder="Masukkan nama lengkap Anda"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-gray-700 ml-1">NIK</label>
                   <div className="relative">
@@ -144,26 +185,15 @@ export default function Login() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value.replace(/\D/g, ''))}
-                      className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-all duration-200"
+                      className="block w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-all duration-200"
                       placeholder="Masukkan 5 digit terakhir NIK"
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1 ml-1">Masukkan 5 digit terakhir NIK Anda.</p>
+                  <p className="text-xs text-gray-500 mt-1 ml-1">Gunakan 5 digit terakhir NIK Anda sebagai username.</p>
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between ml-1">
-                    <label className="text-sm font-semibold text-gray-700">Password</label>
-                    <button
-                      type="button"
-                      onClick={() => setShowForgotInfo(true)}
-                      className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-1"
-                    >
-                      <Info className="h-3.5 w-3.5" />
-                      Lupa sandi?
-                    </button>
-                  </div>
-                  
+                  <label className="text-sm font-semibold text-gray-700 ml-1">Password</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Lock className="h-5 w-5 text-gray-400" />
@@ -173,8 +203,8 @@ export default function Login() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="block w-full pl-11 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-all duration-200"
-                      placeholder="••••••••"
+                      className="block w-full pl-11 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-all duration-200"
+                      placeholder="Minimal 6 karakter"
                     />
                     <button
                       type="button"
@@ -190,7 +220,7 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="group relative w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-gov-green hover:bg-gov-green-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gov-green transition-all duration-200 shadow-lg shadow-gov-green/30 disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="group relative w-full flex justify-center items-center gap-2 py-3.5 px-4 mt-2 border border-transparent text-sm font-bold rounded-xl text-white bg-gov-green hover:bg-gov-green-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gov-green transition-all duration-200 shadow-lg shadow-gov-green/30 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">
@@ -198,11 +228,11 @@ export default function Login() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Memproses...
+                      Mendaftarkan...
                     </span>
                   ) : (
                     <>
-                      Masuk ke Sistem
+                      Daftar Akun
                       <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
@@ -212,9 +242,9 @@ export default function Login() {
 
             <div className="mt-8 pt-6 border-t border-gray-100 text-center">
               <p className="text-sm text-gray-600">
-                Belum punya akun?{' '}
-                <Link to="/register" className="font-bold text-gov-green hover:text-gov-green-dark transition-colors">
-                  Daftar di sini
+                Sudah punya akun?{' '}
+                <Link to="/login" className="font-bold text-gov-green hover:text-gov-green-dark transition-colors">
+                  Login di sini
                 </Link>
               </p>
             </div>
