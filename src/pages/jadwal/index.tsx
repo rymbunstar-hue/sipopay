@@ -103,6 +103,35 @@ export default function JadwalPosyandu() {
     }
   }, [showModal, posyandus]);
 
+  const handleSeedPosyandu = async () => {
+    try {
+      const posyandusToInsert = [
+        { nama: 'Posyandu Bojong', alamat: 'Desa Sukasenang, Blok Bojong', desa_id: 'sukasenang', ketua: 'Ibu Ratna', aktif: true },
+        { nama: 'Posyandu Leuwiceri', alamat: 'Desa Sukasenang, Blok Leuwiceri', desa_id: 'sukasenang', ketua: 'Ibu Tati', aktif: true },
+        { nama: 'Posyandu Panonjer', alamat: 'Desa Sukasenang, Blok Panonjer', desa_id: 'sukasenang', ketua: 'Ibu Neneng', aktif: true },
+        { nama: 'Posyandu Bebedahan', alamat: 'Desa Sukasenang, Blok Bebedahan', desa_id: 'sukasenang', ketua: 'Ibu Sari', aktif: true },
+        { nama: 'Posyandu Cideeng', alamat: 'Desa Sukasenang, Blok Cideeng', desa_id: 'sukasenang', ketua: 'Ibu Mimin', aktif: true },
+        { nama: 'Posyandu Citundun', alamat: 'Desa Sukasenang, Blok Citundun', desa_id: 'sukasenang', ketua: 'Ibu Yoyoh', aktif: true }
+      ];
+
+      const { error } = await supabase.from('posyandu').insert(posyandusToInsert);
+      
+      if (error) {
+        if (error.message.includes('row-level security') || error.message.includes('RLS')) {
+          alert('Gagal! Anda harus login sebagai Super Admin (NIK: 11111) untuk membuat data awal posyandu.');
+        } else {
+          throw error;
+        }
+      } else {
+        alert('6 Posyandu berhasil dibuat! Silakan buka kembali form Jadwal Posyandu Baru.');
+        fetchPosyandus();
+        setShowModal(false);
+      }
+    } catch (err: any) {
+      alert('Gagal membuat posyandu: ' + err.message);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -121,6 +150,18 @@ export default function JadwalPosyandu() {
           Jadwal Posyandu Baru
         </button>
       </div>
+
+      {posyandus.length === 0 && !loadingSessions && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
+          <p className="text-yellow-800 font-medium mb-3">Sistem mendeteksi belum ada data Posyandu di desa ini.</p>
+          <button 
+            onClick={handleSeedPosyandu}
+            className="px-6 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-bold shadow-sm transition-colors"
+          >
+            Klik di sini untuk membuat 6 Posyandu (Login Admin)
+          </button>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-4 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row gap-4 justify-between items-center bg-gray-50/50">
