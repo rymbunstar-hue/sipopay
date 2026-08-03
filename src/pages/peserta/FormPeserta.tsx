@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, User, Calendar, MapPin, Users, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
+import { getPosyanduIdByName } from '../../lib/seedPosyandu';
+
 export default function FormPeserta() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -24,7 +26,8 @@ export default function FormPeserta() {
     alamat_lengkap: '',
     rt: '',
     rw: '',
-    kategori: defaultCategory
+    kategori: defaultCategory,
+    posyandu: 'Posyandu Bojong'
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -41,6 +44,9 @@ export default function FormPeserta() {
         'Ibu Hamil': 'ibu_hamil',
         'Lansia': 'lansia'
       };
+      
+      const posId = await getPosyanduIdByName(formData.posyandu);
+      if (!posId) throw new Error("Posyandu tidak ditemukan di database. Pastikan data posyandu sudah diisi di Supabase.");
 
       const payload = {
         nik: formData.nik || null,
@@ -50,11 +56,11 @@ export default function FormPeserta() {
         tanggal_lahir: formData.tanggal_lahir,
         kategori: categoryMapping[formData.kategori] || 'balita',
         alamat: formData.alamat_lengkap,
-        rt: formData.rt,
-        rw: formData.rw,
+        rt: formData.rt || '000',
+        rw: formData.rw || '000',
         nama_ibu: formData.nama_ibu || null,
         nama_ayah: formData.nama_ayah || null,
-        posyandu_id: '00000000-0000-0000-0000-000000000000' // Placeholder
+        posyandu_id: posId
       };
 
       // Basic insert into Supabase
@@ -65,9 +71,9 @@ export default function FormPeserta() {
       // Success, redirect back
       setSuccess(true);
       setTimeout(() => navigate(redirectPath), 1500);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving data:', error);
-      alert('Gagal menyimpan data. Pastikan NIK belum terdaftar dan koneksi internet stabil.');
+      alert(`Gagal menyimpan data: ${error?.message || 'Error tidak diketahui'}`);
     } finally {
       setLoading(false);
     }
@@ -165,6 +171,23 @@ export default function FormPeserta() {
                   {formData.kategori === 'Balita' ? '👶 Balita (0-5 Tahun)' : formData.kategori === 'Ibu Hamil' ? '🤰 Ibu Hamil' : '🧓 Lansia'}
                 </div>
                 <input type="hidden" name="kategori" value={formData.kategori} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Posyandu Tujuan</label>
+                <select 
+                  name="posyandu"
+                  value={formData.posyandu}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors"
+                >
+                  <option value="Posyandu Bojong">Posyandu Bojong</option>
+                  <option value="Posyandu Leuwiceri">Posyandu Leuwiceri</option>
+                  <option value="Posyandu Panonjer">Posyandu Panonjer</option>
+                  <option value="Posyandu Bebedahan">Posyandu Bebedahan</option>
+                  <option value="Posyandu Cideeng">Posyandu Cideeng</option>
+                  <option value="Posyandu Citundun">Posyandu Citundun</option>
+                </select>
               </div>
             </div>
           </section>
