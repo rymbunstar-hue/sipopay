@@ -33,7 +33,7 @@ export default function DataKader() {
         .from('profiles')
         .select('*')
         .eq('role', 'kader')
-        .order('full_name', { ascending: true });
+        .order('nama', { ascending: true });
 
       if (error) throw error;
       if (data) {
