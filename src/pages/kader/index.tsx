@@ -287,41 +287,60 @@ function TambahKaderModal({ onClose, onSuccess, existingNiks }: TambahKaderModal
     setSubmitting(true);
 
     try {
-
-      // Production mode: Create Supabase auth user
-      // Email format: {5digitNIK}@sipopay.local
       const supabaseEmail = `${nik5}@sipopay.local`;
 
-      let newId = `k-${Date.now()}`;
-      try {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: supabaseEmail,
-          password: password,
-          options: {
-            data: {
-              nama: nama.trim(),
-              username: nik5,
-              role: 'kader',
-            },
-          },
-        });
+      // 1. Simpan sesi Ketua yang sedang aktif agar tidak hilang setelah signUp
+      const { data: { session: adminSession } } = await supabase.auth.getSession();
 
-        if (signUpError && signUpError.message.includes('already registered')) {
+      // 2. Buat akun kader baru di Supabase Auth
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: supabaseEmail,
+        password: password,
+        options: {
+          data: {
+            nama: nama.trim(),
+            username: nik5,
+            role: 'kader',
+          },
+        },
+      });
+
+      if (signUpError) {
+        if (signUpError.message.toLowerCase().includes('already registered') || 
+            signUpError.message.toLowerCase().includes('already been registered')) {
           throw new Error('NIK ini sudah terdaftar. Gunakan NIK lain.');
         }
+        throw new Error(`Gagal membuat akun: ${signUpError.message}`);
+      }
 
-        if (signUpData.user) {
-          newId = signUpData.user.id;
-          await supabase
-            .from('profiles')
-            .update({
-              phone: phone.trim(),
-              assigned_posyandu: posyandu,
-            })
-            .eq('id', newId);
-        }
-      } catch (sbError) {
-        console.warn("Supabase gagal, lanjut dengan mode lokal");
+      if (!signUpData.user) {
+        throw new Error('Akun gagal dibuat. Pastikan fitur "Confirm email" dinonaktifkan di Supabase Authentication → Providers → Email.');
+      }
+
+      const newId = signUpData.user.id;
+
+      // 3. Update profil kader (no. HP dan posyandu)
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          nama: nama.trim(),
+          phone: phone.trim(),
+          assigned_posyandu: posyandu,
+          role: 'kader',
+          aktif: true,
+        })
+        .eq('id', newId);
+
+      if (updateError) {
+        console.warn('Profil kader gagal diupdate:', updateError.message);
+      }
+
+      // 4. Pulihkan sesi Ketua yang sempat tergantikan
+      if (adminSession) {
+        await supabase.auth.setSession({
+          access_token: adminSession.access_token,
+          refresh_token: adminSession.refresh_token,
+        });
       }
 
       const newKader: KaderItem = {
@@ -334,7 +353,7 @@ function TambahKaderModal({ onClose, onSuccess, existingNiks }: TambahKaderModal
       };
 
       setSuccess(true);
-      setTimeout(() => onSuccess(newKader), 1200);
+      setTimeout(() => onSuccess(newKader), 1500);
     } catch (err: any) {
       setError(err.message || 'Gagal membuat akun kader. Silakan coba lagi.');
     } finally {
