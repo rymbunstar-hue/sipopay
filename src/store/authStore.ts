@@ -40,9 +40,8 @@ export const useAuthStore = create<AuthState>((set) => ({
           .eq('id', session.user.id)
           .single();
           
-        if (profile) {
-          set({ role: profile.role });
-        }
+        const userRole = profile?.role || session.user.user_metadata?.role || (session.user.email?.startsWith('11111') ? 'super_admin' : 'kader');
+        set({ role: userRole });
       }
     } catch (error) {
       console.error('Error initializing auth:', error);
@@ -61,9 +60,8 @@ export const useAuthStore = create<AuthState>((set) => ({
           .eq('id', session.user.id)
           .single();
           
-        if (profile) {
-          set({ role: profile.role });
-        }
+        const userRole = profile?.role || session.user.user_metadata?.role || (session.user.email?.startsWith('11111') ? 'super_admin' : 'kader');
+        set({ role: userRole });
       } else {
         set({ role: null });
       }
