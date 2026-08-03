@@ -25,16 +25,24 @@ export default function JadwalPosyandu() {
     catatan: '',
   });
 
+  const [posyandus, setPosyandus] = useState<any[]>([]);
+
   useEffect(() => {
     fetchSessions();
+    fetchPosyandus();
   }, [user]);
+
+  const fetchPosyandus = async () => {
+    const { data } = await supabase.from('posyandu').select('*');
+    if (data) setPosyandus(data);
+  };
 
   const fetchSessions = async () => {
     setLoadingSessions(true);
     try {
       const { data, error } = await supabase
         .from('sesi_posyandu')
-        .select('*')
+        .select('*, posyandu(*)')
         .order('tanggal', { ascending: false })
         .limit(20);
 
@@ -53,42 +61,55 @@ export default function JadwalPosyandu() {
     setSubmitLoading(true);
 
     try {
-      let posyanduId = '00000000-0000-0000-0000-000000000000';
-      const { data: posyandus } = await supabase.from('posyandu').select('id').limit(1);
-      if (posyandus && posyandus.length > 0) {
-        posyanduId = posyandus[0].id;
-      } else {
-        const { data: newPosyandu } = await supabase.from('posyandu').insert([{
-          nama: 'Posyandu Mawar',
-          alamat: 'Desa Sukasenang',
-          ketua: 'Ibu Ratna',
-        }]).select();
-        if (newPosyandu && newPosyandu.length > 0) {
-          posyanduId = newPosyandu[0].id;
+      let posyanduId = formData.tempat;
+
+      // Jika belum ada posyandu sama sekali
+      if (!posyanduId || posyandus.length === 0) {
+        // Coba cek sekali lagi di DB
+        const { data: existingPos } = await supabase.from('posyandu').select('id').limit(1);
+        if (existingPos && existingPos.length > 0) {
+          posyanduId = existingPos[0].id;
+        } else {
+          throw new Error("Data Posyandu belum ada di database. Silakan login sebagai Super Admin untuk otomatis membuat data posyandu, atau tambahkan manual di Supabase.");
         }
       }
+
+      // Gabungkan jam mulai ke dalam catatan agar tidak hilang (karena kolom jam_mulai belum ada di DB)
+      const catatanLengkap = `[Jam: ${formData.jam_mulai}] ${formData.catatan}`;
 
       const payload = {
         posyandu_id: posyanduId,
         tanggal: formData.tanggal,
         status: 'aktif',
         kader_id: user?.id || null,
-        catatan: formData.catatan,
+        catatan: catatanLengkap,
       };
 
       const { error } = await supabase.from('sesi_posyandu').insert([payload]);
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes('foreign key constraint')) {
+          throw new Error("Posyandu yang dipilih tidak valid atau sudah dihapus.");
+        }
+        throw error;
+      }
 
       fetchSessions();
       setShowModal(false);
-      setFormData({ tanggal: new Date().toISOString().split('T')[0], tempat: 'Posyandu Bojong', jam_mulai: '08:00', catatan: '' });
-    } catch (err) {
+      setFormData({ tanggal: new Date().toISOString().split('T')[0], tempat: posyandus[0]?.id || '', jam_mulai: '08:00', catatan: '' });
+    } catch (err: any) {
       console.error(err);
-      alert('Gagal menjadwalkan sesi posyandu baru.');
+      alert('Gagal menjadwalkan sesi posyandu baru:\n' + err.message);
     } finally {
       setSubmitLoading(false);
     }
   };
+
+  // Set default tempat when modal opens
+  useEffect(() => {
+    if (showModal && posyandus.length > 0 && !formData.tempat) {
+      setFormData(prev => ({ ...prev, tempat: posyandus[0].id }));
+    }
+  }, [showModal, posyandus]);
 
   return (
     <div className="space-y-6">
@@ -160,16 +181,10 @@ export default function JadwalPosyandu() {
                         {new Date(session.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                       </h4>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                        {session.tempat && (
+                        {session.posyandu && (
                           <span className="flex items-center gap-1.5 text-sm text-gray-600 font-medium">
                             <MapPin className="h-4 w-4 text-gov-green" />
-                            {session.tempat}
-                          </span>
-                        )}
-                        {session.jam_mulai && (
-                          <span className="flex items-center gap-1.5 text-sm text-gray-500">
-                            <Clock className="h-4 w-4" />
-                            Pukul {session.jam_mulai} WIB
+                            {session.posyandu.nama}
                           </span>
                         )}
                       </div>
@@ -219,8 +234,9 @@ export default function JadwalPosyandu() {
                       onChange={(e) => setFormData({ ...formData, tempat: e.target.value })}
                       className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors text-sm appearance-none"
                     >
-                      {LOKASI_POSYANDU.map(lok => (
-                        <option key={lok.id} value={lok.nama}>{lok.nama}</option>
+                      {posyandus.length === 0 && <option value="">Belum ada posyandu</option>}
+                      {posyandus.map(lok => (
+                        <option key={lok.id} value={lok.id}>{lok.nama}</option>
                       ))}
                     </select>
                   </div>
