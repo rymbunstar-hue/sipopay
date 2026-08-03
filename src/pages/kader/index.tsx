@@ -23,6 +23,28 @@ export default function DataKader() {
 
   useEffect(() => {
     fetchKader();
+
+    // Subscribe ke perubahan realtime di tabel profiles (khusus kader)
+    const subscription = supabase
+      .channel('kader-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+          filter: "role=eq.kader",
+        },
+        () => {
+          // Ketika ada perubahan (insert/update/delete) dari admin/kader lain, fetch ulang
+          fetchKader();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
   }, [user]);
 
   const fetchKader = async () => {

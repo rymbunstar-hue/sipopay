@@ -108,7 +108,7 @@ export default function DataIbuHamil() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Total Ibu Hamil</p>
-            <h3 className="text-2xl font-bold text-gray-900">38 <span className="text-sm font-normal text-gray-500">Orang</span></h3>
+            <h3 className="text-2xl font-bold text-gray-900">0 <span className="text-sm font-normal text-gray-500">Orang</span></h3>
           </div>
         </div>
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4">
@@ -117,7 +117,7 @@ export default function DataIbuHamil() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Kunjungan Bulan Ini</p>
-            <h3 className="text-2xl font-bold text-gray-900">21 <span className="text-sm font-normal text-gray-500">Kunjungan</span></h3>
+            <h3 className="text-2xl font-bold text-gray-900">0 <span className="text-sm font-normal text-gray-500">Kunjungan</span></h3>
           </div>
         </div>
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4">
@@ -126,7 +126,7 @@ export default function DataIbuHamil() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Risiko Tinggi</p>
-            <h3 className="text-2xl font-bold text-gray-900">4 <span className="text-sm font-normal text-gray-500">Orang</span></h3>
+            <h3 className="text-2xl font-bold text-gray-900">0 <span className="text-sm font-normal text-gray-500">Orang</span></h3>
           </div>
         </div>
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4">
@@ -135,7 +135,7 @@ export default function DataIbuHamil() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Status KEK</p>
-            <h3 className="text-2xl font-bold text-gray-900">2 <span className="text-sm font-normal text-gray-500">Orang</span></h3>
+            <h3 className="text-2xl font-bold text-gray-900">0 <span className="text-sm font-normal text-gray-500">Orang</span></h3>
           </div>
         </div>
       </div>

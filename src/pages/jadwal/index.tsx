@@ -208,9 +208,11 @@ export default function JadwalPosyandu() {
                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <select
                       required
+                      name={`tempat_${Math.random().toString(36).substring(7)}`}
+                      autoComplete="off"
                       value={formData.tempat}
                       onChange={(e) => setFormData({ ...formData, tempat: e.target.value })}
-                      className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors text-sm appearance-none"
+                      className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors text-sm"
                     >
                       {LOKASI_POSYANDU.map(lok => (
                         <option key={lok.id} value={lok.nama}>{lok.nama}</option>

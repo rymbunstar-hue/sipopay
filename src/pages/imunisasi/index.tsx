@@ -58,7 +58,7 @@ export default function DataImunisasi() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Capaian Bulan Ini</p>
-            <h3 className="text-2xl font-bold text-gray-900">28 <span className="text-sm font-normal text-gray-500">Anak</span></h3>
+            <h3 className="text-2xl font-bold text-gray-900">0 <span className="text-sm font-normal text-gray-500">Anak</span></h3>
           </div>
         </div>
       </div>

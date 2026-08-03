@@ -67,23 +67,23 @@ export default function PosyanduLansia() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4">
           <div className="p-4 bg-blue-50 text-blue-600 rounded-xl">
             <Calendar className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-500">Bulan Ini</p>
-            <h3 className="text-2xl font-bold text-gray-900">25 <span className="text-sm font-normal text-gray-500">Kunjungan</span></h3>
+            <p className="text-sm font-medium text-gray-500">Kunjungan Bulan Ini</p>
+            <h3 className="text-2xl font-bold text-gray-900">0 <span className="text-sm font-normal text-gray-500">Kunjungan</span></h3>
           </div>
         </div>
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4">
-          <div className="p-4 bg-red-50 text-red-600 rounded-xl">
+          <div className="p-4 bg-orange-50 text-orange-600 rounded-xl">
             <HeartPulse className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-500">Hipertensi / Risiko</p>
-            <h3 className="text-2xl font-bold text-gray-900">4 <span className="text-sm font-normal text-gray-500">Orang</span></h3>
+            <p className="text-sm font-medium text-gray-500">Tekanan Darah Tinggi</p>
+            <h3 className="text-2xl font-bold text-gray-900">0 <span className="text-sm font-normal text-gray-500">Orang</span></h3>
           </div>
         </div>
       </div>
