@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { Calendar, Plus, X, Save, Clock, MapPin, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { ensurePosyanduExists, getPosyanduIdByName } from '../../lib/seedPosyandu';
 
 const LOKASI_POSYANDU = [
   { id: 'pos-1', nama: 'Posyandu Bojong' },
@@ -27,7 +28,10 @@ export default function JadwalPosyandu() {
   });
 
   useEffect(() => {
-    fetchSessions();
+    // Saat halaman dibuka, pastikan 6 posyandu sudah ada di DB
+    ensurePosyanduExists().then(() => {
+      fetchSessions();
+    });
   }, [user]);
 
   const fetchSessions = async () => {
@@ -35,7 +39,7 @@ export default function JadwalPosyandu() {
     try {
       const { data, error } = await supabase
         .from('sesi_posyandu')
-        .select('*')
+        .select('*, posyandu(nama)')
         .order('tanggal', { ascending: false })
         .limit(20);
 
@@ -54,45 +58,19 @@ export default function JadwalPosyandu() {
     setSubmitLoading(true);
 
     try {
-      let posyanduId = null;
+      // Dapatkan UUID posyandu berdasarkan nama yang dipilih
+      const posyanduId = await getPosyanduIdByName(formData.tempat);
 
-      // 1. Coba cari posyandu dengan nama yang dipilih di DB
-      const { data: existingPos } = await supabase.from('posyandu').select('id').eq('nama', formData.tempat).limit(1);
-      
-      if (existingPos && existingPos.length > 0) {
-        posyanduId = existingPos[0].id;
-      } else {
-        // 2. Jika tidak ada, coba buat baru (Hanya berhasil jika login sebagai Admin/Ketua Kader)
-        const { data: newPosyandu } = await supabase.from('posyandu').insert([{
-          nama: formData.tempat,
-          alamat: 'Desa Sukasenang',
-          ketua: '-',
-          aktif: true
-        }]).select();
-        
-        if (newPosyandu && newPosyandu.length > 0) {
-          posyanduId = newPosyandu[0].id;
-        } else {
-          // 3. Jika gagal (karena login sebagai Kader), pakai posyandu apa saja yang ada di DB
-          const { data: fallbackPos } = await supabase.from('posyandu').select('id').limit(1);
-          if (fallbackPos && fallbackPos.length > 0) {
-            posyanduId = fallbackPos[0].id;
-          } else {
-            // 4. Jika DB benar-benar kosong, Kader tidak bisa membuat jadwal pertama
-            throw new Error("Gagal menyimpan! Mohon login sebagai Ketua Kader / Admin terlebih dahulu untuk membuat jadwal pertama kali, agar sistem posyandu terhubung secara online.");
-          }
-        }
+      if (!posyanduId) {
+        throw new Error(`Posyandu "${formData.tempat}" belum terdaftar di database. Silakan refresh halaman dan coba lagi.`);
       }
-
-      // Gabungkan tempat dan jam mulai ke catatan agar datanya konkrit & real-time
-      const catatanLengkap = `[${formData.tempat} - ${formData.jam_mulai}] ${formData.catatan}`;
 
       const payload = {
         posyandu_id: posyanduId,
         tanggal: formData.tanggal,
         status: 'aktif',
         kader_id: user?.id || null,
-        catatan: catatanLengkap,
+        catatan: `[${formData.tempat} - ${formData.jam_mulai}] ${formData.catatan}`.trim(),
       };
 
       const { error } = await supabase.from('sesi_posyandu').insert([payload]);
@@ -102,7 +80,7 @@ export default function JadwalPosyandu() {
       setShowModal(false);
       setFormData({ tanggal: new Date().toISOString().split('T')[0], tempat: 'Posyandu Bojong', jam_mulai: '08:00', catatan: '' });
     } catch (err: any) {
-      console.error(err);
+      console.error('Error creating session:', err);
       alert(err.message || 'Gagal menjadwalkan sesi posyandu baru.');
     } finally {
       setSubmitLoading(false);
@@ -179,17 +157,17 @@ export default function JadwalPosyandu() {
                         {new Date(session.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                       </h4>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                          <span className="flex items-center gap-1.5 text-sm text-gray-600 font-medium">
-                            <MapPin className="h-4 w-4 text-gov-green" />
-                            {session.catatan?.match(/\[(.*?) \-/)?.[1] || 'Posyandu Bojong'}
-                          </span>
-                          <span className="flex items-center gap-1.5 text-sm text-gray-500">
-                            <Clock className="h-4 w-4" />
-                            Pukul {session.catatan?.match(/\- (.*?)\]/)?.[1] || '08:00'} WIB
-                          </span>
+                        <span className="flex items-center gap-1.5 text-sm text-gray-600 font-medium">
+                          <MapPin className="h-4 w-4 text-gov-green" />
+                          {session.posyandu?.nama || session.catatan?.match(/\[(.*?) \-/)?.[1] || 'Posyandu'}
+                        </span>
+                        <span className="flex items-center gap-1.5 text-sm text-gray-500">
+                          <Clock className="h-4 w-4" />
+                          Pukul {session.catatan?.match(/\- (.*?)\]/)?.[1] || '08:00'} WIB
+                        </span>
                       </div>
                       {session.catatan && (
-                        <p className="text-sm text-gray-500 mt-2">{session.catatan.replace(/\[.*?\] /, '')}</p>
+                        <p className="text-sm text-gray-500 mt-2">{session.catatan.replace(/\[.*?\]\s?/, '')}</p>
                       )}
                     </div>
                   </div>
