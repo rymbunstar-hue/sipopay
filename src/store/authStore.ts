@@ -20,18 +20,18 @@ async function loadUserProfile(userId: string, email?: string, userMeta?: any) {
   try {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('nama, full_name, username, role')
+      .select('nama, username, role')
       .eq('id', userId)
       .maybeSingle();
 
     const userRole = profile?.role || userMeta?.role || (email?.startsWith('11111') ? 'super_admin' : 'kader');
 
-    let displayName = profile?.nama || profile?.full_name || userMeta?.nama;
+    let displayName = profile?.nama || userMeta?.nama;
 
-    // Jika nama berupa NIK/angka (seperti "11111") atau kosong, ganti dengan nama role yang ramah
+    // Jika nama tidak ada atau hanya berupa NIK/angka (seperti "11111")
     if (!displayName || /^\d+$/.test(displayName.trim())) {
       if (userRole === 'super_admin' || profile?.username === '11111' || email?.startsWith('11111')) {
-        displayName = 'Super Admin (Utama)';
+        displayName = 'Super Admin';
       } else if (userRole === 'bidan') {
         displayName = 'Bidan Desa';
       } else if (userRole === 'admin_desa') {
@@ -44,7 +44,7 @@ async function loadUserProfile(userId: string, email?: string, userMeta?: any) {
     return { role: userRole, profileName: displayName };
   } catch (err) {
     const userRole = email?.startsWith('11111') ? 'super_admin' : 'kader';
-    const displayName = email?.startsWith('11111') ? 'Super Admin (Utama)' : 'Petugas Kader';
+    const displayName = email?.startsWith('11111') ? 'Super Admin' : 'Petugas Kader';
     return { role: userRole, profileName: displayName };
   }
 }

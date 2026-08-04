@@ -13,7 +13,8 @@ import {
   Bell,
   Search,
   Activity,
-  CalendarDays
+  CalendarDays,
+  Settings
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
@@ -38,9 +39,27 @@ export default function DashboardLayout() {
     { name: 'Ibu Hamil', path: '/bumil', icon: HeartPulse, roles: ['kader', 'bidan', 'admin_desa', 'super_admin'] },
     { name: 'Posyandu Lansia', path: '/lansia', icon: Activity, roles: ['kader', 'bidan', 'admin_desa', 'super_admin'] },
     { name: 'Laporan', path: '/laporan', icon: FileText, roles: ['kader', 'bidan', 'admin_desa', 'super_admin'] },
+    { name: 'Pengaturan Profil', path: '/pengaturan', icon: Settings, roles: ['kader', 'bidan', 'admin_desa', 'super_admin'] },
   ];
 
   const filteredNavItems = navItems.filter(item => !role || item.roles.includes(role));
+
+  const getFormattedDisplayName = () => {
+    let name = profileName || user?.user_metadata?.nama;
+    if (name && name.trim() && !/^\d+$/.test(name.trim())) {
+      return name;
+    }
+    const rawEmail = user?.email?.split('@')[0] || '';
+    if (!rawEmail || /^\d+$/.test(rawEmail.trim())) {
+      if (role === 'super_admin' || rawEmail === '11111') return 'Super Admin';
+      if (role === 'bidan') return 'Bidan Desa';
+      if (role === 'admin_desa') return 'Admin Desa';
+      return 'Petugas Kader';
+    }
+    return rawEmail;
+  };
+
+  const displayName = getFormattedDisplayName();
 
   return (
     <div className="min-h-screen bg-gov-light flex">
@@ -81,10 +100,10 @@ export default function DashboardLayout() {
         <div className="p-6 lg:hidden border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center font-bold">
-              {(profileName || user?.email?.charAt(0) || 'P').charAt(0).toUpperCase()}
+              {displayName.charAt(0).toUpperCase()}
             </div>
             <div>
-              <p className="text-sm font-medium truncate w-40">{profileName || user?.email?.split('@')[0] || 'Petugas'}</p>
+              <p className="text-sm font-medium truncate w-40">{displayName}</p>
               <p className="text-xs text-gov-green-light">{role ? role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Pengguna'}</p>
             </div>
           </div>
@@ -198,19 +217,19 @@ export default function DashboardLayout() {
               )}
             </div>
 
-            <div className="hidden sm:flex items-center gap-3 pl-6 border-l border-gray-200">
+            <Link to="/pengaturan" className="hidden sm:flex items-center gap-3 pl-6 border-l border-gray-200 group hover:opacity-80 transition-opacity cursor-pointer">
               <div className="text-right">
-                <p className="text-sm font-semibold text-gray-900 truncate max-w-[150px]">
-                  {profileName || user?.email?.split('@')[0] || 'Petugas Posyandu'}
+                <p className="text-sm font-semibold text-gray-900 truncate max-w-[150px] group-hover:text-gov-green transition-colors">
+                  {displayName}
                 </p>
                 <p className="text-xs text-gov-green font-medium capitalize">
-                  {role ? role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Kader'}
+                  {role ? role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Super Admin'}
                 </p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-gov-green-light border border-gov-green/20 flex items-center justify-center font-bold text-gov-green uppercase">
-                {(profileName || user?.email?.charAt(0) || 'P').charAt(0).toUpperCase()}
+              <div className="h-10 w-10 rounded-full bg-gov-green-light border border-gov-green/20 flex items-center justify-center font-bold text-gov-green uppercase group-hover:scale-105 transition-transform">
+                {displayName.charAt(0).toUpperCase()}
               </div>
-            </div>
+            </Link>
           </div>
         </header>
 

@@ -17,6 +17,7 @@ import FormIbuHamil from './pages/bumil/FormIbuHamil';
 import DataLansia from './pages/lansia';
 import FormLansia from './pages/lansia/FormKunjunganLansia';
 import Laporan from './pages/laporan';
+import Pengaturan from './pages/pengaturan';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
@@ -64,6 +65,9 @@ function App() {
 
           {/* Laporan */}
           <Route path="laporan" element={<Laporan />} />
+
+          {/* Pengaturan Profil */}
+          <Route path="pengaturan" element={<Pengaturan />} />
         </Route>
 
         {/* Fallback */}
