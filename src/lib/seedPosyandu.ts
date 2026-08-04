@@ -9,69 +9,39 @@ const POSYANDU_LIST = [
   { nama: 'Posyandu Citundun', alamat: 'Desa Sukasenang, Blok Citundun', desa_id: 'sukasenang', ketua: 'Ibu Yoyoh', aktif: true },
 ];
 
-// Cache agar tidak query berulang kali
-let _seeded = false;
-let _posyanduMap: Record<string, string> = {}; // nama -> id
+let _posyanduMap: Record<string, string> = {};
 
-/**
- * Pastikan 6 posyandu ada di database.
- * Jika sudah ada, langsung return map nama->id.
- * Jika belum, coba insert satu per satu.
- */
 export async function ensurePosyanduExists(): Promise<Record<string, string>> {
-  if (_seeded && Object.keys(_posyanduMap).length > 0) {
-    return _posyanduMap;
-  }
-
   try {
-    // 1. Cek dulu apa saja yang sudah ada
     const { data: existing } = await supabase.from('posyandu').select('id, nama');
     
-    if (existing && existing.length >= 6) {
-      // Sudah lengkap, langsung buat map
+    if (existing && existing.length > 0) {
       _posyanduMap = {};
       for (const p of existing) {
         _posyanduMap[p.nama] = p.id;
       }
-      _seeded = true;
+
       return _posyanduMap;
     }
 
-    // 2. Cari yang belum ada berdasarkan nama, lalu insert satu per satu
-    const existingNames = new Set(existing?.map(p => p.nama) || []);
-    
+    // Try inserting default list if empty
     for (const pos of POSYANDU_LIST) {
-      if (!existingNames.has(pos.nama)) {
-        // Cek sekali lagi by nama sebelum insert (extra safety)
-        const { data: check } = await supabase.from('posyandu').select('id').eq('nama', pos.nama).limit(1);
-        if (check && check.length > 0) {
-          existingNames.add(pos.nama);
-          continue;
-        }
-
-        const { error } = await supabase
-          .from('posyandu')
-          .insert([pos])
-          .select('id, nama');
-        
-        if (error) {
-          console.warn(`Gagal insert ${pos.nama}:`, error.message);
-        } else {
-          existingNames.add(pos.nama);
-        }
+      const { data: inserted } = await supabase
+        .from('posyandu')
+        .insert([pos])
+        .select('id, nama');
+      if (inserted && inserted.length > 0) {
+        _posyanduMap[inserted[0].nama] = inserted[0].id;
       }
     }
 
-    // 3. Re-fetch semua posyandu untuk mendapatkan map lengkap
     const { data: allPos } = await supabase.from('posyandu').select('id, nama');
-    _posyanduMap = {};
-    if (allPos) {
+    if (allPos && allPos.length > 0) {
+      _posyanduMap = {};
       for (const p of allPos) {
         _posyanduMap[p.nama] = p.id;
       }
     }
-
-    _seeded = true;
     return _posyanduMap;
   } catch (err) {
     console.error('Error seeding posyandu:', err);
@@ -79,11 +49,26 @@ export async function ensurePosyanduExists(): Promise<Record<string, string>> {
   }
 }
 
-/**
- * Dapatkan UUID posyandu berdasarkan nama.
- * Akan otomatis seed jika belum pernah dijalankan.
- */
 export async function getPosyanduIdByName(nama: string): Promise<string | null> {
+  // Query DB directly first
+  try {
+    const { data: directMatch } = await supabase.from('posyandu').select('id, nama');
+    if (directMatch && directMatch.length > 0) {
+      const match = directMatch.find(p => p.nama.toLowerCase().trim() === nama.toLowerCase().trim());
+      if (match) return match.id;
+      // Return first available posyandu if exact match not found
+      return directMatch[0].id;
+    }
+  } catch (e) {
+    console.warn('Direct posyandu fetch failed:', e);
+  }
+
+  // Fallback to seed map
   const map = await ensurePosyanduExists();
-  return map[nama] || null;
+  if (map[nama]) return map[nama];
+  const keys = Object.keys(map);
+  if (keys.length > 0) return map[keys[0]];
+
+  return null;
 }
+

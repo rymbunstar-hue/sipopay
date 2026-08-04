@@ -4,23 +4,9 @@ import { Search, Plus, HeartPulse, AlertTriangle, Stethoscope, CalendarDays } fr
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 
-interface KunjunganBumil {
-  id: string;
-  tanggal: string;
-  usia_kehamilan: number;
-  berat_badan: number;
-  tekanan_darah: string;
-  status_risiko: string;
-  status_kek: boolean;
-  peserta?: {
-    nama: string;
-    nik: string;
-  };
-}
-
 export default function DataIbuHamil() {
   const { user } = useAuthStore();
-  const [data, setData] = useState<KunjunganBumil[]>([]);
+  const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -29,18 +15,42 @@ export default function DataIbuHamil() {
       try {
         setLoading(true);
 
+        const { data: rawPeserta } = await supabase
+          .from('peserta')
+          .select('*')
+          .eq('kategori', 'ibu_hamil')
+          .order('created_at', { ascending: false, nullsFirst: false });
 
-        const { data: kunjungan, error } = await supabase
+        const { data: rawKunjungan } = await supabase
           .from('kunjungan_ibu_hamil')
           .select(`
             *,
             peserta (nama, nik)
           `)
-          .order('tanggal', { ascending: false })
-          .limit(30);
+          .order('tanggal', { ascending: false });
 
-        if (!error && kunjungan) {
-          setData(kunjungan);
+        if (rawPeserta && rawPeserta.length > 0) {
+          const list = rawPeserta.map(p => {
+            const kunjungans = rawKunjungan?.filter((k: any) => k.peserta_id === p.id) || [];
+            kunjungans.sort((a: any, b: any) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
+            const latest = kunjungans[0];
+            return {
+              id: p.id,
+              peserta: { nama: p.nama, nik: p.nik },
+              tanggal: latest?.tanggal || p.created_at || new Date().toISOString(),
+              usia_kehamilan: latest?.usia_kehamilan || '-',
+              berat_badan: latest?.berat_badan || '-',
+              tekanan_darah: latest?.tekanan_darah || '-',
+              status_risiko: latest?.status_risiko || 'normal',
+              status_kek: latest?.status_kek || false,
+              has_kunjungan: !!latest,
+            };
+          });
+          setData(list);
+        } else if (rawKunjungan && rawKunjungan.length > 0) {
+          setData(rawKunjungan.map(k => ({ ...k, has_kunjungan: true })));
+        } else {
+          setData([]);
         }
       } catch (err) {
         console.error(err);
@@ -53,7 +63,7 @@ export default function DataIbuHamil() {
 
   const filteredData = data.filter(item =>
     item.peserta?.nama?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.peserta?.nik?.includes(searchQuery)
+    (item.peserta?.nik && item.peserta.nik.includes(searchQuery))
   );
 
   const getRisikoColor = (risiko: string) => {

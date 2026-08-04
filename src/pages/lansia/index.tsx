@@ -8,6 +8,7 @@ export default function PosyanduLansia() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [searchQuery, setSearchQuery] = useState('');
   const { user } = useAuthStore();
 
   useEffect(() => {
@@ -15,18 +16,40 @@ export default function PosyanduLansia() {
       try {
         setLoading(true);
 
+        const { data: rawPeserta } = await supabase
+          .from('peserta')
+          .select('*')
+          .eq('kategori', 'lansia')
+          .order('created_at', { ascending: false, nullsFirst: false });
 
-        const { data, error } = await supabase
+        const { data: rawKunjungan } = await supabase
           .from('kunjungan_lansia')
           .select(`
             *,
             peserta (nama, nik, jenis_kelamin, tanggal_lahir)
           `)
-          .order('tanggal', { ascending: false })
-          .limit(20);
-          
-        if (!error && data) {
-          setData(data);
+          .order('tanggal', { ascending: false });
+
+        if (rawPeserta && rawPeserta.length > 0) {
+          const list = rawPeserta.map(p => {
+            const kunjungans = rawKunjungan?.filter((k: any) => k.peserta_id === p.id) || [];
+            kunjungans.sort((a: any, b: any) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
+            const latest = kunjungans[0];
+            return {
+              id: p.id,
+              peserta: { nama: p.nama, nik: p.nik },
+              tanggal: latest?.tanggal || p.created_at || new Date().toISOString(),
+              tekanan_darah: latest?.tekanan_darah || '-',
+              gula_darah: latest?.gula_darah || null,
+              keluhan: latest?.keluhan || 'Belum ada catatan periksa',
+              has_kunjungan: !!latest,
+            };
+          });
+          setData(list);
+        } else if (rawKunjungan && rawKunjungan.length > 0) {
+          setData(rawKunjungan.map(k => ({ ...k, has_kunjungan: true })));
+        } else {
+          setData([]);
         }
       } catch (err) {
         console.error(err);
@@ -37,6 +60,11 @@ export default function PosyanduLansia() {
     
     fetchKunjungan();
   }, [user]);
+
+  const filteredData = data.filter(item =>
+    item.peserta?.nama?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (item.peserta?.nik && item.peserta.nik.includes(searchQuery))
+  );
 
   return (
     <div className="space-y-6">
@@ -96,8 +124,10 @@ export default function PosyanduLansia() {
             </div>
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green sm:text-sm transition-all"
-              placeholder="Cari riwayat kunjungan lansia..."
+              placeholder="Cari nama atau NIK lansia..."
             />
           </div>
         </div>
@@ -117,17 +147,17 @@ export default function PosyanduLansia() {
               {loading ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
-                    Memuat riwayat kunjungan...
+                    Memuat data lansia...
                   </td>
                 </tr>
-              ) : data.length === 0 ? (
+              ) : filteredData.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
-                    Belum ada data kunjungan lansia.
+                    {searchQuery ? 'Tidak ada lansia yang cocok dengan pencarian.' : 'Belum ada data lansia terdaftar.'}
                   </td>
                 </tr>
               ) : (
-                data.map((item, idx) => (
+                filteredData.map((item, idx) => (
                   <tr key={idx} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {new Date(item.tanggal).toLocaleDateString('id-ID')}
@@ -144,7 +174,9 @@ export default function PosyanduLansia() {
                       {item.keluhan || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-gov-green hover:text-gov-green-dark">Detail</button>
+                      <Link to="/lansia/tambah" className="text-gov-green hover:text-gov-green-dark font-medium">
+                        + Input Periksa
+                      </Link>
                     </td>
                   </tr>
                 ))

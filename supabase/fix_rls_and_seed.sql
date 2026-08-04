@@ -4,8 +4,9 @@
 -- dan menambahkan 6 posyandu ke database
 -- ================================================================
 
--- 1. Hapus policy lama yang terlalu ketat untuk posyandu
+-- 1. Hapus policy lama jika ada
 DROP POLICY IF EXISTS "Allow admin/superadmin to manage posyandu" ON public.posyandu;
+DROP POLICY IF EXISTS "Allow authenticated to manage posyandu" ON public.posyandu;
 
 -- 2. Buat policy baru: semua user yang terautentikasi bisa mengelola posyandu
 CREATE POLICY "Allow authenticated to manage posyandu" 
@@ -26,8 +27,10 @@ ON CONFLICT DO NOTHING;
 
 -- 4. Perbaiki juga policy sesi_posyandu biar kader bisa insert
 DROP POLICY IF EXISTS "Allow health workers to manage sesi" ON public.sesi_posyandu;
+DROP POLICY IF EXISTS "Allow authenticated to manage sesi" ON public.sesi_posyandu;
 
 CREATE POLICY "Allow authenticated to manage sesi" 
 ON public.sesi_posyandu FOR ALL TO authenticated 
 USING (true) 
 WITH CHECK (true);
+

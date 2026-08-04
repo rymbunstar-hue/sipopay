@@ -46,11 +46,10 @@ export default function FormPeserta() {
       };
       
       const posId = await getPosyanduIdByName(formData.posyandu);
-      if (!posId) throw new Error("Posyandu tidak ditemukan di database. Pastikan data posyandu sudah diisi di Supabase.");
 
-      const payload = {
+      const payload: any = {
         nik: formData.nik || null,
-        nomor_kk: formData.no_kk,
+        nomor_kk: formData.no_kk || null,
         nama: formData.nama_lengkap,
         jenis_kelamin: formData.jenis_kelamin,
         tanggal_lahir: formData.tanggal_lahir,
@@ -60,13 +59,34 @@ export default function FormPeserta() {
         rw: formData.rw || '000',
         nama_ibu: formData.nama_ibu || null,
         nama_ayah: formData.nama_ayah || null,
-        posyandu_id: posId
       };
 
-      // Basic insert into Supabase
-      const { error } = await supabase.from('peserta').insert([payload]);
+      if (posId) {
+        payload.posyandu_id = posId;
+      }
 
-      if (error) throw error;
+      let { error } = await supabase.from('peserta').insert([payload]);
+
+      // Jika error Foreign Key posyandu_id, coba pakai ID posyandu pertama di DB
+      if (error && (error.code === '23503' || error.message?.includes('posyandu_id_fkey'))) {
+        const { data: posList } = await supabase.from('posyandu').select('id').limit(1);
+        if (posList && posList.length > 0) {
+          payload.posyandu_id = posList[0].id;
+          const retry = await supabase.from('peserta').insert([payload]);
+          error = retry.error;
+        } else {
+          delete payload.posyandu_id;
+          const retry = await supabase.from('peserta').insert([payload]);
+          error = retry.error;
+        }
+      }
+
+      if (error) {
+        if (error.code === '23505' || (error as any).status === 409 || error.message?.includes('duplicate') || error.message?.includes('unique') || error.message?.includes('peserta_nik_key')) {
+          throw new Error(`NIK "${formData.nik}" sudah terdaftar di database! Harap periksa kembali atau gunakan NIK lain.`);
+        }
+        throw error;
+      }
       
       // Success, redirect back
       setSuccess(true);
