@@ -4,6 +4,7 @@ import { ArrowLeft, Save, Scale, Activity, HeartPulse, Search, X, ChevronDown } 
 import { supabase } from '../../lib/supabase';
 
 import { useAuthStore } from '../../store/authStore';
+import { getActiveSesiId } from '../../lib/seedPosyandu';
 // ── Searchable Combobox Component ──────────────────────────────────────────
 interface ComboboxOption { id: string; nama: string; nik?: string | null; }
 
@@ -177,10 +178,10 @@ export default function FormKunjunganLansia() {
     setLoading(true);
 
     try {
+      const sesiId = await getActiveSesiId();
 
-      const kunjunganData = {
+      const kunjunganData: any = {
         peserta_id: formData.peserta_id,
-        sesi_id: '00000000-0000-0000-0000-000000000000', // Sesi posyandu placeholder
         berat_badan: parseFloat(formData.berat_badan),
         tekanan_darah: formData.tekanan_darah,
         gula_darah: formData.gula_darah ? parseInt(formData.gula_darah) : null,
@@ -188,18 +189,26 @@ export default function FormKunjunganLansia() {
         asam_urat: formData.asam_urat ? parseFloat(formData.asam_urat) : null,
         keluhan: formData.keluhan || null,
         tindak_lanjut: formData.tindak_lanjut || null,
-        petugas_id: user?.id || '00000000-0000-0000-0000-000000000000',
         tanggal: formData.tanggal_kunjungan
       };
 
-      const { error } = await supabase.from('kunjungan_lansia').insert([kunjunganData]);
+      if (sesiId) kunjunganData.sesi_id = sesiId;
+      if (user?.id) kunjunganData.petugas_id = user.id;
+
+      let { error } = await supabase.from('kunjungan_lansia').insert([kunjunganData]);
+
+      if (error && (error.code === '23503' || error.message?.includes('sesi_id_fkey'))) {
+        delete kunjunganData.sesi_id;
+        const retry = await supabase.from('kunjungan_lansia').insert([kunjunganData]);
+        error = retry.error;
+      }
 
       if (error) throw error;
       
       navigate('/lansia');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving kunjungan lansia:', error);
-      alert('Gagal menyimpan data kunjungan.');
+      alert(`Gagal menyimpan data kunjungan: ${error?.message || 'Error tidak diketahui'}`);
     } finally {
       setLoading(false);
     }

@@ -72,3 +72,35 @@ export async function getPosyanduIdByName(nama: string): Promise<string | null> 
   return null;
 }
 
+export async function getActiveSesiId(): Promise<string | null> {
+  try {
+    const { data: sesiList } = await supabase
+      .from('sesi_posyandu')
+      .select('id')
+      .order('tanggal', { ascending: false })
+      .limit(1);
+
+    if (sesiList && sesiList.length > 0) {
+      return sesiList[0].id;
+    }
+
+    // Try inserting a default session if table is empty
+    const posId = await getPosyanduIdByName('Posyandu Bojong');
+    if (posId) {
+      const { data: newSesi } = await supabase
+        .from('sesi_posyandu')
+        .insert([{
+          posyandu_id: posId,
+          tanggal: new Date().toISOString().split('T')[0],
+          status: 'aktif',
+          catatan: 'Sesi Operasional Posyandu Sukasenang'
+        }])
+        .select('id');
+      if (newSesi && newSesi.length > 0) return newSesi[0].id;
+    }
+  } catch (e) {
+    console.warn('Failed to get or create active sesi:', e);
+  }
+  return null;
+}
+

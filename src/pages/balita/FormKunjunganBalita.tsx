@@ -4,6 +4,7 @@ import { ArrowLeft, Save, Scale, Ruler, Activity, Baby, Search, X, ChevronDown }
 import { supabase } from '../../lib/supabase';
 
 import { useAuthStore } from '../../store/authStore';
+import { getActiveSesiId } from '../../lib/seedPosyandu';
 
 // ── Searchable Combobox Component ──────────────────────────────────────────
 interface ComboboxOption { id: string; nama: string; nik?: string | null; }
@@ -181,10 +182,10 @@ export default function FormKunjunganBalita() {
     setLoading(true);
 
     try {
+      const sesiId = await getActiveSesiId();
 
-      const kunjunganData = {
+      const kunjunganData: any = {
         peserta_id: formData.peserta_id,
-        sesi_id: '00000000-0000-0000-0000-000000000000',
         berat_badan: parseFloat(formData.berat_badan),
         tinggi_badan: parseFloat(formData.tinggi_badan),
         cara_ukur: 'berdiri',
@@ -198,18 +199,31 @@ export default function FormKunjunganBalita() {
         status_gizi_bbtb: 'Normal',
         stunting_status: 'normal',
         catatan: formData.catatan_kader || null,
-        kader_id: user?.id || '00000000-0000-0000-0000-000000000000',
         tanggal: formData.tanggal_kunjungan
       };
 
-      const { error } = await supabase.from('kunjungan_balita').insert([kunjunganData]);
+      if (sesiId) {
+        kunjunganData.sesi_id = sesiId;
+      }
+      if (user?.id) {
+        kunjunganData.kader_id = user.id;
+      }
+
+      let { error } = await supabase.from('kunjungan_balita').insert([kunjunganData]);
+
+      // Jika error sesi_id FK constraint, retry tanpa sesi_id
+      if (error && (error.code === '23503' || error.message?.includes('sesi_id_fkey'))) {
+        delete kunjunganData.sesi_id;
+        const retry = await supabase.from('kunjungan_balita').insert([kunjunganData]);
+        error = retry.error;
+      }
 
       if (error) throw error;
       
       navigate('/balita');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving kunjungan:', error);
-      alert('Gagal menyimpan data kunjungan.');
+      alert(`Gagal menyimpan data kunjungan: ${error?.message || 'Error tidak diketahui'}`);
     } finally {
       setLoading(false);
     }

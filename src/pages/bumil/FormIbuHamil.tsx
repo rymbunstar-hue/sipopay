@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, HeartPulse, Scale, Stethoscope, Pill } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
+import { getActiveSesiId } from '../../lib/seedPosyandu';
 
 export default function FormIbuHamil() {
   const navigate = useNavigate();
@@ -75,8 +76,9 @@ export default function FormIbuHamil() {
     setLoading(true);
 
     try {
+      const sesiId = await getActiveSesiId();
 
-      const payload = {
+      const payload: any = {
         ...formData,
         berat_badan: parseFloat(formData.berat_badan),
         lila: parseFloat(formData.lila),
@@ -84,17 +86,25 @@ export default function FormIbuHamil() {
         usia_kehamilan: parseInt(formData.usia_kehamilan),
         detak_jantung_janin: formData.detak_jantung_janin ? parseInt(formData.detak_jantung_janin) : null,
         tablet_tambah_darah: parseInt(formData.tablet_tambah_darah),
-        bidan_id: user?.id,
-        sesi_id: '00000000-0000-0000-0000-000000000000', // placeholder
       };
 
-      const { error } = await supabase.from('kunjungan_ibu_hamil').insert([payload]);
+      if (user?.id) payload.bidan_id = user.id;
+      if (sesiId) payload.sesi_id = sesiId;
+
+      let { error } = await supabase.from('kunjungan_ibu_hamil').insert([payload]);
+
+      if (error && (error.code === '23503' || error.message?.includes('sesi_id_fkey'))) {
+        delete payload.sesi_id;
+        const retry = await supabase.from('kunjungan_ibu_hamil').insert([payload]);
+        error = retry.error;
+      }
+
       if (error) throw error;
 
       navigate('/bumil');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving:', error);
-      alert('Gagal menyimpan data. Periksa koneksi internet Anda.');
+      alert(`Gagal menyimpan data: ${error?.message || 'Periksa koneksi internet Anda.'}`);
     } finally {
       setLoading(false);
     }
