@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Baby, 
-  Syringe, 
-  HeartPulse, 
-  FileText, 
+import {
+  LayoutDashboard,
+  Users,
+  Baby,
+  Syringe,
+  HeartPulse,
+  FileText,
   LogOut,
   Menu,
   X,
@@ -46,7 +46,7 @@ export default function DashboardLayout() {
     <div className="min-h-screen bg-gov-light flex">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-gray-900/50 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -66,10 +66,10 @@ export default function DashboardLayout() {
             </div>
             <div>
               <h2 className="text-xl font-bold tracking-wide">SIPOPAY</h2>
-              <p className="text-xs text-gov-green-light opacity-80">Desa Sukasenang</p>
+              <p className="text-xs text-gov-green-light opacity-80">Desa Sukasenang X Desa Setiawangi</p>
             </div>
           </div>
-          <button 
+          <button
             className="ml-auto lg:hidden text-white/70 hover:text-white"
             onClick={() => setSidebarOpen(false)}
           >
@@ -103,8 +103,8 @@ export default function DashboardLayout() {
                 to={item.path}
                 className={`
                   flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
-                  ${isActive 
-                    ? 'bg-white text-gov-green font-semibold shadow-md' 
+                  ${isActive
+                    ? 'bg-white text-gov-green font-semibold shadow-md'
                     : 'text-white/80 hover:bg-white/10 hover:text-white'
                   }
                 `}
@@ -119,7 +119,7 @@ export default function DashboardLayout() {
 
         {/* Sidebar Footer */}
         <div className="p-4 border-t border-white/10">
-          <button 
+          <button
             onClick={handleSignOut}
             className="flex w-full items-center gap-3 px-4 py-3 text-white/80 hover:bg-red-500/20 hover:text-red-100 rounded-xl transition-colors"
           >
@@ -140,7 +140,7 @@ export default function DashboardLayout() {
             >
               <Menu className="h-6 w-6" />
             </button>
-            
+
             {/* Search (Desktop) */}
             <div className="hidden md:flex relative max-w-md w-full">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -156,18 +156,18 @@ export default function DashboardLayout() {
 
           <div className="flex items-center gap-4 sm:gap-6 relative">
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setShowNotifications(!showNotifications)}
                 className="p-2 text-gray-400 hover:text-gov-green relative focus:outline-none transition-colors rounded-lg hover:bg-gray-100"
               >
                 <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full border border-white"></span>
                 <Bell className="h-6 w-6" />
               </button>
-              
+
               {showNotifications && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40" 
+                  <div
+                    className="fixed inset-0 z-40"
                     onClick={() => setShowNotifications(false)}
                   />
                   <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -193,7 +193,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
                     <div className="p-2 border-t border-gray-100 text-center">
-                      <button 
+                      <button
                         onClick={() => setShowNotifications(false)}
                         className="text-xs text-gov-green font-semibold hover:text-gov-green-dark transition-colors py-1 w-full"
                       >
@@ -204,7 +204,7 @@ export default function DashboardLayout() {
                 </>
               )}
             </div>
-            
+
             <div className="hidden sm:flex items-center gap-3 pl-6 border-l border-gray-200">
               <div className="text-right">
                 <p className="text-sm font-semibold text-gray-900 truncate max-w-[150px]">

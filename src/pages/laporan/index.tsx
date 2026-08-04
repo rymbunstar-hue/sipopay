@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Download, Baby, HeartPulse, Syringe, TrendingUp, Calendar, Loader2, AlertCircle } from 'lucide-react';
+import { FileText, Download, Baby, HeartPulse, Syringe, TrendingUp, Calendar, Loader2, AlertCircle, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 type ReportType = 'balita' | 'bumil' | 'imunisasi';
@@ -180,6 +180,38 @@ export default function Laporan() {
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
+        onclone: (clonedDoc) => {
+          // Override getComputedStyle di document clone untuk me-replace oklch secara real-time
+          const win = clonedDoc.defaultView || window;
+          if (win && win.getComputedStyle) {
+            const origCS = win.getComputedStyle;
+            win.getComputedStyle = function (el: Element, pseudo?: string | null) {
+              const res = origCS.call(win, el, pseudo);
+              return new Proxy(res, {
+                get(target, prop) {
+                  const val = (target as any)[prop];
+                  if (typeof val === 'string' && val.includes('oklch')) {
+                    return val.replace(/oklch\([^)]+\)/gi, 'rgb(22, 101, 52)');
+                  }
+                  if (prop === 'getPropertyValue') {
+                    return (p: string) => {
+                      const v = target.getPropertyValue(p);
+                      return v && v.includes('oklch') ? v.replace(/oklch\([^)]+\)/gi, 'rgb(22, 101, 52)') : v;
+                    };
+                  }
+                  return typeof val === 'function' ? val.bind(target) : val;
+                }
+              });
+            };
+          }
+
+          // Replace oklch di semua tag <style>
+          clonedDoc.querySelectorAll('style').forEach((s) => {
+            if (s.textContent && s.textContent.includes('oklch')) {
+              s.textContent = s.textContent.replace(/oklch\([^)]+\)/gi, 'rgb(22, 101, 52)');
+            }
+          });
+        }
       });
 
       const imgData = canvas.toDataURL('image/png');
@@ -195,9 +227,9 @@ export default function Laporan() {
       pdf.setFillColor(22, 101, 52); // gov-green
       pdf.rect(0, 0, pdfWidth, 18, 'F');
       pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(13);
+      pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('SIPOPAY — Laporan Posyandu Desa Sukasenang', pdfWidth / 2, 8, { align: 'center' });
+      pdf.text('SIPOPAY — Laporan Posyandu Desa Sukasenang X Desa Setiawangi', pdfWidth / 2, 8, { align: 'center' });
       pdf.setFontSize(9);
       pdf.setFont('helvetica', 'normal');
       pdf.text(`Periode: ${MONTHS[selectedMonth]} ${selectedYear} | Dicetak: ${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}`, pdfWidth / 2, 14, { align: 'center' });
@@ -210,11 +242,242 @@ export default function Laporan() {
       pdf.setFontSize(7);
       pdf.text('Dokumen ini dibuat secara otomatis oleh Sistem Informasi Posyandu (SIPOPAY)', pdfWidth / 2, pdfHeight - 5, { align: 'center' });
 
-      const fileName = `Laporan_${activeTab}_${MONTHS[selectedMonth]}_${selectedYear}.pdf`;
+      const fileName = `SIPOPAY_Laporan_${activeTab.toUpperCase()}_${MONTHS[selectedMonth]}_${selectedYear}.pdf`;
       pdf.save(fileName);
     } catch (err) {
-      console.error('Export PDF gagal:', err);
-      alert('Gagal mengekspor PDF. Silakan coba lagi.');
+      console.warn('html2canvas canvas rendering warn, fallback to native window.print():', err);
+      window.print();
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    setExporting(true);
+    const { start, end } = getDateRange(selectedYear, selectedMonth);
+    const periodTitle = `${MONTHS[selectedMonth]} ${selectedYear}`;
+
+    try {
+      let headersHtml = '';
+      let rowsHtml = '';
+      let docTitle = '';
+
+      if (activeTab === 'balita') {
+        docTitle = `REKAPITULASI POSYANDU BALITA - PERIODE ${periodTitle.toUpperCase()}`;
+        headersHtml = `
+          <tr>
+            <th>No</th>
+            <th>Tanggal Periksa</th>
+            <th>Nama Balita</th>
+            <th>NIK Balita</th>
+            <th>Jenis Kelamin</th>
+            <th>Tanggal Lahir</th>
+            <th>Nama Ibu</th>
+            <th>BB (kg)</th>
+            <th>TB (cm)</th>
+            <th>Lingkar Kepala</th>
+            <th>Lingkar Lengan</th>
+            <th>Status Gizi (BBU)</th>
+            <th>Status Stunting</th>
+            <th>Catatan Kader</th>
+          </tr>
+        `;
+
+        const { data: rawKunjungan } = await supabase
+          .from('kunjungan_balita')
+          .select(`*, peserta (nama, nik, jenis_kelamin, tanggal_lahir, nama_ibu)`)
+          .gte('tanggal', start)
+          .lte('tanggal', end)
+          .order('tanggal', { ascending: false });
+
+        if (rawKunjungan && rawKunjungan.length > 0) {
+          rawKunjungan.forEach((row: any, idx: number) => {
+            const p = row.peserta || {};
+            const isStunted = ['stunted', 'severely_stunted'].includes(row.stunting_status);
+            rowsHtml += `
+              <tr class="${idx % 2 === 1 ? 'even' : ''}">
+                <td style="text-align: center;">${idx + 1}</td>
+                <td style="text-align: center;">${row.tanggal || '-'}</td>
+                <td style="font-weight: bold; color: #111827;">${p.nama || '-'}</td>
+                <td style="mso-number-format:'\\@'; text-align: center;">${p.nik || '-'}</td>
+                <td style="text-align: center;">${p.jenis_kelamin === 'P' ? 'Perempuan' : 'Laki-laki'}</td>
+                <td style="text-align: center;">${p.tanggal_lahir || '-'}</td>
+                <td>${p.nama_ibu || '-'}</td>
+                <td style="text-align: right; font-weight: bold;">${row.berat_badan || 0}</td>
+                <td style="text-align: right; font-weight: bold;">${row.tinggi_badan || 0}</td>
+                <td style="text-align: right;">${row.lingkar_kepala ? row.lingkar_kepala : '-'}</td>
+                <td style="text-align: right;">${row.lingkar_lengan ? row.lingkar_lengan : '-'}</td>
+                <td style="text-align: center;"><span class="${row.status_gizi_bbu === 'underweight' ? 'badge-danger' : 'badge-success'}">${row.status_gizi_bbu || 'Normal'}</span></td>
+                <td style="text-align: center;"><span class="${isStunted ? 'badge-danger' : 'badge-success'}">${row.stunting_status || 'normal'}</span></td>
+                <td>${row.catatan || '-'}</td>
+              </tr>
+            `;
+          });
+        } else {
+          const { data: rawPeserta } = await supabase
+            .from('peserta')
+            .select('*')
+            .eq('kategori', 'balita')
+            .order('nama', { ascending: true });
+
+          (rawPeserta || []).forEach((p: any, idx: number) => {
+            rowsHtml += `
+              <tr class="${idx % 2 === 1 ? 'even' : ''}">
+                <td style="text-align: center;">${idx + 1}</td>
+                <td style="text-align: center;">${start}</td>
+                <td style="font-weight: bold; color: #111827;">${p.nama || '-'}</td>
+                <td style="mso-number-format:'\\@'; text-align: center;">${p.nik || '-'}</td>
+                <td style="text-align: center;">${p.jenis_kelamin === 'P' ? 'Perempuan' : 'Laki-laki'}</td>
+                <td style="text-align: center;">${p.tanggal_lahir || '-'}</td>
+                <td>${p.nama_ibu || '-'}</td>
+                <td style="text-align: center;">-</td>
+                <td style="text-align: center;">-</td>
+                <td style="text-align: center;">-</td>
+                <td style="text-align: center;">-</td>
+                <td style="text-align: center;"><span class="badge-neutral">Belum Diukur</span></td>
+                <td style="text-align: center;"><span class="badge-neutral">Belum Diukur</span></td>
+                <td>Terdaftar di database</td>
+              </tr>
+            `;
+          });
+        }
+      } else if (activeTab === 'bumil') {
+        docTitle = `REKAPITULASI PEMANTAUAN IBU HAMIL - PERIODE ${periodTitle.toUpperCase()}`;
+        headersHtml = `
+          <tr>
+            <th>No</th>
+            <th>Tanggal Periksa</th>
+            <th>Nama Ibu Hamil</th>
+            <th>NIK</th>
+            <th>Usia Kehamilan</th>
+            <th>Berat Badan</th>
+            <th>Tekanan Darah</th>
+            <th>LiLA (cm)</th>
+            <th>Status KEK</th>
+            <th>Status Risiko</th>
+            <th>Catatan Bidan</th>
+          </tr>
+        `;
+
+        const { data: rawBumil } = await supabase
+          .from('kunjungan_ibu_hamil')
+          .select(`*, peserta (nama, nik)`)
+          .gte('tanggal', start)
+          .lte('tanggal', end)
+          .order('tanggal', { ascending: false });
+
+        (rawBumil || []).forEach((row: any, idx: number) => {
+          const p = row.peserta || {};
+          const isHighRisk = ['tinggi', 'sangat_tinggi'].includes(row.status_risiko);
+          rowsHtml += `
+            <tr class="${idx % 2 === 1 ? 'even' : ''}">
+              <td style="text-align: center;">${idx + 1}</td>
+              <td style="text-align: center;">${row.tanggal || '-'}</td>
+              <td style="font-weight: bold; color: #111827;">${p.nama || '-'}</td>
+              <td style="mso-number-format:'\\@'; text-align: center;">${p.nik || '-'}</td>
+              <td style="text-align: center;">${row.usia_kehamilan || 0} Minggu</td>
+              <td style="text-align: right; font-weight: bold;">${row.berat_badan || 0} kg</td>
+              <td style="text-align: center; font-weight: bold;">${row.tekanan_darah || '-'}</td>
+              <td style="text-align: right;">${row.lila || 0} cm</td>
+              <td style="text-align: center;"><span class="${row.status_kek ? 'badge-danger' : 'badge-success'}">${row.status_kek ? 'Ya (KEK)' : 'Tidak'}</span></td>
+              <td style="text-align: center;"><span class="${isHighRisk ? 'badge-danger' : 'badge-success'}">${row.status_risiko || 'normal'}</span></td>
+              <td>${row.catatan || '-'}</td>
+            </tr>
+          `;
+        });
+      } else if (activeTab === 'imunisasi') {
+        docTitle = `REKAPITULASI PEMBERIAN IMUNISASI BALITA - PERIODE ${periodTitle.toUpperCase()}`;
+        headersHtml = `
+          <tr>
+            <th>No</th>
+            <th>Tanggal Pemberian</th>
+            <th>Nama Balita</th>
+            <th>NIK Balita</th>
+            <th>Jenis Vaksin</th>
+            <th>Nomor Batch</th>
+            <th>Petugas Bidan / Pelaksana</th>
+          </tr>
+        `;
+
+        const { data: rawImunisasi } = await supabase
+          .from('imunisasi')
+          .select(`*, peserta (nama, nik), profiles (nama)`)
+          .gte('tanggal', start)
+          .lte('tanggal', end)
+          .order('tanggal', { ascending: false });
+
+        (rawImunisasi || []).forEach((row: any, idx: number) => {
+          const p = row.peserta || {};
+          const b = row.profiles || {};
+          rowsHtml += `
+            <tr class="${idx % 2 === 1 ? 'even' : ''}">
+              <td style="text-align: center;">${idx + 1}</td>
+              <td style="text-align: center;">${row.tanggal || '-'}</td>
+              <td style="font-weight: bold; color: #111827;">${p.nama || '-'}</td>
+              <td style="mso-number-format:'\\@'; text-align: center;">${p.nik || '-'}</td>
+              <td style="font-weight: bold; color: #166534;">${row.jenis_vaksin || '-'}</td>
+              <td style="text-align: center;">${row.no_batch || '-'}</td>
+              <td>${b.nama || 'Petugas Posyandu'}</td>
+            </tr>
+          `;
+        });
+      }
+
+      const totalCols = activeTab === 'balita' ? 14 : activeTab === 'bumil' ? 11 : 7;
+
+      const excelTemplate = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+        <meta charset="utf-8">
+        <!--[if gte mso 9]>
+        <xml>
+         <x:ExcelWorkbook>
+          <x:ExcelWorksheets>
+           <x:ExcelWorksheet>
+            <x:Name>${activeTab.toUpperCase()}</x:Name>
+            <x:WorksheetOptions>
+             <x:DisplayGridlines/>
+            </x:WorksheetOptions>
+           </x:ExcelWorksheet>
+          </x:ExcelWorksheets>
+         </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+          .main-header { background-color: #166534; color: #ffffff; font-size: 15px; font-weight: bold; text-align: center; padding: 12px; }
+          .sub-header { background-color: #14532d; color: #dcfce7; font-size: 11px; text-align: center; padding: 6px; }
+          th { background-color: #166534; color: #ffffff; font-weight: bold; text-align: center; border: 1px solid #0f3923; padding: 8px 12px; font-size: 11px; }
+          td { border: 1px solid #e5e7eb; padding: 7px 10px; font-size: 11px; vertical-align: middle; }
+          .even { background-color: #f8fafc; }
+          .badge-success { background-color: #dcfce7; color: #15803d; font-weight: bold; padding: 2px 8px; border-radius: 12px; }
+          .badge-danger { background-color: #fee2e2; color: #b91c1c; font-weight: bold; padding: 2px 8px; border-radius: 12px; }
+          .badge-neutral { background-color: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 12px; }
+        </style>
+        </head>
+        <body>
+          <table>
+            <tr><th colspan="${totalCols}" class="main-header">SIPOPAY — ${docTitle}</th></tr>
+            <tr><th colspan="${totalCols}" class="sub-header">Pemerintah Desa Sukasenang X Desa Setiawangi | Tanggal Unduh: ${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</th></tr>
+            <tr><td colspan="${totalCols}" style="height: 10px; border: none;"></td></tr>
+            ${headersHtml}
+            ${rowsHtml}
+          </table>
+        </body>
+        </html>
+      `;
+
+      const blob = new Blob([excelTemplate], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `SIPOPAY_Rekap_${activeTab.toUpperCase()}_${periodTitle.replace(/\s+/g, '_')}.xls`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Export Excel gagal:', err);
+      alert('Gagal mengekspor data ke Excel.');
     } finally {
       setExporting(false);
     }
@@ -236,17 +499,27 @@ export default function Laporan() {
           </h1>
           <p className="text-gray-500 mt-1">Rekapitulasi bulanan kegiatan posyandu secara real-time.</p>
         </div>
-        <button
-          onClick={handleExportPDF}
-          disabled={exporting || loading}
-          className="flex items-center gap-2 bg-gov-green hover:bg-gov-green-dark disabled:opacity-60 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl font-medium shadow-sm shadow-gov-green/20 transition-all text-sm"
-        >
-          {exporting ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> Mengekspor...</>
-          ) : (
-            <><Download className="h-4 w-4" /> Export PDF</>
-          )}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportExcel}
+            disabled={exporting || loading}
+            className="flex items-center gap-2 bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed px-4 py-2.5 rounded-xl font-medium shadow-sm transition-all text-sm cursor-pointer"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-green-600" />
+            Export Excel (.csv)
+          </button>
+          <button
+            onClick={handleExportPDF}
+            disabled={exporting || loading}
+            className="flex items-center gap-2 bg-gov-green hover:bg-gov-green-dark disabled:opacity-60 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl font-medium shadow-sm shadow-gov-green/20 transition-all text-sm cursor-pointer"
+          >
+            {exporting ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Mengekspor...</>
+            ) : (
+              <><Download className="h-4 w-4" /> Export PDF</>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Filter Period */}
@@ -308,7 +581,7 @@ export default function Laporan() {
         <div ref={reportRef} className="p-6 bg-white">
           {/* PDF Header (hanya tampil di print mode) */}
           <div className="hidden print:block mb-4 pb-4 border-b-2 border-gov-green">
-            <h2 className="text-xl font-bold">Laporan Posyandu Desa Sukasenang</h2>
+            <h2 className="text-xl font-bold">Laporan Posyandu Desa Sukasenang X Desa Setiawangi</h2>
             <p className="text-sm text-gray-600">Periode: {MONTHS[selectedMonth]} {selectedYear}</p>
           </div>
 
