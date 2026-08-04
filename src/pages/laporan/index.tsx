@@ -229,7 +229,7 @@ export default function Laporan() {
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('SIPOPAY — Laporan Posyandu Desa Sukasenang X Desa Setiawangi', pdfWidth / 2, 8, { align: 'center' });
+      pdf.text('SIPOPAY — Laporan Posyandu Desa Sukasenang', pdfWidth / 2, 8, { align: 'center' });
       pdf.setFontSize(9);
       pdf.setFont('helvetica', 'normal');
       pdf.text(`Periode: ${MONTHS[selectedMonth]} ${selectedYear} | Dicetak: ${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}`, pdfWidth / 2, 14, { align: 'center' });
@@ -458,7 +458,7 @@ export default function Laporan() {
         <body>
           <table>
             <tr><th colspan="${totalCols}" class="main-header">SIPOPAY — ${docTitle}</th></tr>
-            <tr><th colspan="${totalCols}" class="sub-header">Pemerintah Desa Sukasenang X Desa Setiawangi | Tanggal Unduh: ${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</th></tr>
+            <tr><th colspan="${totalCols}" class="sub-header">Pemerintah Desa Sukasenang | Tanggal Unduh: ${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</th></tr>
             <tr><td colspan="${totalCols}" style="height: 10px; border: none;"></td></tr>
             ${headersHtml}
             ${rowsHtml}
@@ -563,11 +563,10 @@ export default function Laporan() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                    activeTab === tab.id
-                      ? 'border-gov-green text-gov-green bg-gov-green/5'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                  }`}
+                  className={`flex items-center gap-2 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${activeTab === tab.id
+                    ? 'border-gov-green text-gov-green bg-gov-green/5'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
                 >
                   <Icon className="h-4 w-4" />
                   {tab.label}
@@ -581,7 +580,7 @@ export default function Laporan() {
         <div ref={reportRef} className="p-6 bg-white">
           {/* PDF Header (hanya tampil di print mode) */}
           <div className="hidden print:block mb-4 pb-4 border-b-2 border-gov-green">
-            <h2 className="text-xl font-bold">Laporan Posyandu Desa Sukasenang X Desa Setiawangi</h2>
+            <h2 className="text-xl font-bold">Laporan Posyandu Desa Sukasenang</h2>
             <p className="text-sm text-gray-600">Periode: {MONTHS[selectedMonth]} {selectedYear}</p>
           </div>
 

@@ -22,7 +22,7 @@ export default function DashboardLayout() {
   const [showNotifications, setShowNotifications] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, role, signOut } = useAuthStore();
+  const { user, role, profileName, signOut } = useAuthStore();
 
   const handleSignOut = async () => {
     await signOut();
@@ -66,7 +66,7 @@ export default function DashboardLayout() {
             </div>
             <div>
               <h2 className="text-xl font-bold tracking-wide">SIPOPAY</h2>
-              <p className="text-xs text-gov-green-light opacity-80">Desa Sukasenang X Desa Setiawangi</p>
+              <p className="text-xs text-gov-green-light opacity-80">Desa Sukasenang</p>
             </div>
           </div>
           <button
@@ -81,10 +81,10 @@ export default function DashboardLayout() {
         <div className="p-6 lg:hidden border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center font-bold">
-              {user?.email?.charAt(0).toUpperCase() || 'U'}
+              {(profileName || user?.email?.charAt(0) || 'P').charAt(0).toUpperCase()}
             </div>
             <div>
-              <p className="text-sm font-medium truncate w-40">{user?.email}</p>
+              <p className="text-sm font-medium truncate w-40">{profileName || user?.email?.split('@')[0] || 'Petugas'}</p>
               <p className="text-xs text-gov-green-light">{role ? role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Pengguna'}</p>
             </div>
           </div>
@@ -108,10 +108,9 @@ export default function DashboardLayout() {
                     : 'text-white/80 hover:bg-white/10 hover:text-white'
                   }
                 `}
-                onClick={() => setSidebarOpen(false)}
               >
-                <item.icon className={`h-5 w-5 ${isActive ? 'text-gov-green' : 'text-white/70'}`} />
-                {item.name}
+                <item.icon className="h-5 w-5" />
+                <span>{item.name}</span>
               </Link>
             );
           })}
@@ -124,18 +123,18 @@ export default function DashboardLayout() {
             className="flex w-full items-center gap-3 px-4 py-3 text-white/80 hover:bg-red-500/20 hover:text-red-100 rounded-xl transition-colors"
           >
             <LogOut className="h-5 w-5" />
-            <span>Keluar</span>
+            <span>Keluar Sistem</span>
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Header */}
-        <header className="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 lg:px-8 shadow-sm z-30">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-4 sm:px-8 shadow-sm">
           <div className="flex items-center gap-4">
             <button
-              className="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 focus:outline-none"
+              className="lg:hidden text-gray-500 hover:text-gray-700"
               onClick={() => setSidebarOpen(true)}
             >
               <Menu className="h-6 w-6" />
@@ -148,8 +147,8 @@ export default function DashboardLayout() {
               </div>
               <input
                 type="text"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green sm:text-sm transition-all"
                 placeholder="Cari peserta posyandu..."
+                className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-all"
               />
             </div>
           </div>
@@ -160,7 +159,6 @@ export default function DashboardLayout() {
                 onClick={() => setShowNotifications(!showNotifications)}
                 className="p-2 text-gray-400 hover:text-gov-green relative focus:outline-none transition-colors rounded-lg hover:bg-gray-100"
               >
-                <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full border border-white"></span>
                 <Bell className="h-6 w-6" />
               </button>
 
@@ -171,25 +169,20 @@ export default function DashboardLayout() {
                     onClick={() => setShowNotifications(false)}
                   />
                   <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="px-4 py-2 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
-                      <span className="font-semibold text-sm text-gray-900">Notifikasi Baru</span>
-                      <span className="text-xs font-semibold text-gov-green bg-gov-green/10 px-2 py-0.5 rounded-full">3 Baru</span>
+                    <div className="px-4 py-2 border-b border-gray-100 flex justify-between items-center">
+                      <h3 className="font-semibold text-gray-900 text-sm">Notifikasi Posyandu</h3>
+                      <span className="text-xs bg-gov-green/10 text-gov-green px-2 py-0.5 rounded-full font-medium">Terbaru</span>
                     </div>
                     <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
-                      <div className="p-4 hover:bg-gray-50/70 transition-colors cursor-pointer">
-                        <p className="text-xs text-gov-green font-semibold mb-1">Jadwal Operasional</p>
-                        <p className="text-sm text-gray-700 font-medium">Jadwal Posyandu Sukasenang direncanakan besok pagi pukul 08.00 WIB.</p>
-                        <p className="text-[10px] text-gray-400 mt-2">1 jam yang lalu</p>
+                      <div className="p-3 hover:bg-gray-50 transition-colors">
+                        <p className="text-xs font-semibold text-gray-800">Jadwal Posyandu Balita</p>
+                        <p className="text-xs text-gray-500 mt-0.5">Posyandu Bojong akan dilaksanakan besok pukul 08.00 WIB.</p>
+                        <p className="text-[10px] text-gray-400 mt-1">10 menit yang lalu</p>
                       </div>
-                      <div className="p-4 hover:bg-gray-50/70 transition-colors cursor-pointer">
-                        <p className="text-xs text-orange-600 font-semibold mb-1">Peringatan Imunisasi</p>
-                        <p className="text-sm text-gray-700 font-medium">Imunisasi DPT-HB-Hib 1 untuk balita Anindita Larasati belum tercatat.</p>
-                        <p className="text-[10px] text-gray-400 mt-2">3 jam yang lalu</p>
-                      </div>
-                      <div className="p-4 hover:bg-gray-50/70 transition-colors cursor-pointer">
-                        <p className="text-xs text-red-600 font-semibold mb-1">Status KEK Bumil</p>
-                        <p className="text-sm text-gray-700 font-medium">2 ibu hamil di wilayah Kp. Cikadu terdeteksi memiliki status KEK.</p>
-                        <p className="text-[10px] text-gray-400 mt-2">1 hari yang lalu</p>
+                      <div className="p-3 hover:bg-gray-50 transition-colors">
+                        <p className="text-xs font-semibold text-gray-800">Laporan Stunting</p>
+                        <p className="text-xs text-gray-500 mt-0.5">1 balita terindikasi stunting membutuhkan perhatian khusus.</p>
+                        <p className="text-[10px] text-gray-400 mt-1">1 jam yang lalu</p>
                       </div>
                     </div>
                     <div className="p-2 border-t border-gray-100 text-center">
@@ -208,14 +201,14 @@ export default function DashboardLayout() {
             <div className="hidden sm:flex items-center gap-3 pl-6 border-l border-gray-200">
               <div className="text-right">
                 <p className="text-sm font-semibold text-gray-900 truncate max-w-[150px]">
-                  {user?.user_metadata?.nama || user?.email?.split('@')[0] || 'Kader'}
+                  {profileName || user?.email?.split('@')[0] || 'Petugas Posyandu'}
                 </p>
                 <p className="text-xs text-gov-green font-medium capitalize">
                   {role ? role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Kader'}
                 </p>
               </div>
               <div className="h-10 w-10 rounded-full bg-gov-green-light border border-gov-green/20 flex items-center justify-center font-bold text-gov-green uppercase">
-                {user?.user_metadata?.nama?.charAt(0) || user?.email?.charAt(0) || 'K'}
+                {(profileName || user?.email?.charAt(0) || 'P').charAt(0).toUpperCase()}
               </div>
             </div>
           </div>
@@ -225,7 +218,7 @@ export default function DashboardLayout() {
         <div className="flex-1 overflow-auto bg-gov-light p-4 sm:p-6 lg:p-8">
           <Outlet />
         </div>
-      </main>
+      </div>
     </div>
   );
 }
