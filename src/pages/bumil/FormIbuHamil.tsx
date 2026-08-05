@@ -80,12 +80,14 @@ export default function FormIbuHamil() {
 
       const payload: any = {
         ...formData,
+        hpht: formData.hpht || null,
+        hpl: formData.hpl || null,
         berat_badan: parseFloat(formData.berat_badan),
         lila: parseFloat(formData.lila),
         tfu: formData.tfu ? parseFloat(formData.tfu) : null,
         usia_kehamilan: parseInt(formData.usia_kehamilan),
         detak_jantung_janin: formData.detak_jantung_janin ? parseInt(formData.detak_jantung_janin) : null,
-        tablet_tambah_darah: parseInt(formData.tablet_tambah_darah),
+        tablet_tambah_darah: formData.tablet_tambah_darah ? parseInt(formData.tablet_tambah_darah) : 0,
       };
 
       if (user?.id) payload.bidan_id = user.id;

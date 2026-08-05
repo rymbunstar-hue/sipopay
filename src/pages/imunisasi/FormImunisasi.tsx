@@ -55,6 +55,7 @@ export default function FormImunisasi() {
 
       const { error } = await supabase.from('imunisasi').insert([{
         ...formData,
+        no_batch: formData.no_batch || null,
         pemberi_id: user?.id,
       }]);
 
