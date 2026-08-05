@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/authStore';
 export default function PosyanduLansia() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ kunjunganBulanIni: 0, hipertensi: 0 });
 
   const [searchQuery, setSearchQuery] = useState('');
   const { user } = useAuthStore();
@@ -28,6 +29,8 @@ export default function PosyanduLansia() {
     const fetchKunjungan = async () => {
       try {
         setLoading(true);
+        const now = new Date();
+        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
 
         const { data: rawPeserta } = await supabase
           .from('peserta')
@@ -42,6 +45,12 @@ export default function PosyanduLansia() {
             peserta (nama, nik, jenis_kelamin, tanggal_lahir)
           `)
           .order('tanggal', { ascending: false });
+
+        // Query kunjungan bulan ini
+        const { count: kunjunganBulanIniCount } = await supabase
+          .from('kunjungan_lansia')
+          .select('*', { count: 'exact', head: true })
+          .gte('tanggal', firstOfMonth);
 
         if (rawPeserta && rawPeserta.length > 0) {
           const list = rawPeserta.map(p => {
@@ -59,10 +68,37 @@ export default function PosyanduLansia() {
             };
           });
           setData(list);
+
+          const hipertensiCount = list.filter(item => {
+            if (!item.tekanan_darah || item.tekanan_darah === '-') return false;
+            const parts = item.tekanan_darah.split('/');
+            const sys = parseInt(parts[0]);
+            return !isNaN(sys) && sys >= 140;
+          }).length;
+
+          setStats({
+            kunjunganBulanIni: kunjunganBulanIniCount || 0,
+            hipertensi: hipertensiCount
+          });
+
         } else if (rawKunjungan && rawKunjungan.length > 0) {
-          setData(rawKunjungan.map(k => ({ ...k, has_kunjungan: true })));
+          const list = rawKunjungan.map(k => ({ ...k, has_kunjungan: true }));
+          setData(list);
+
+          const hipertensiCount = list.filter(item => {
+            if (!item.tekanan_darah || item.tekanan_darah === '-') return false;
+            const parts = item.tekanan_darah.split('/');
+            const sys = parseInt(parts[0]);
+            return !isNaN(sys) && sys >= 140;
+          }).length;
+
+          setStats({
+            kunjunganBulanIni: kunjunganBulanIniCount || 0,
+            hipertensi: hipertensiCount
+          });
         } else {
           setData([]);
+          setStats({ kunjunganBulanIni: 0, hipertensi: 0 });
         }
       } catch (err) {
         console.error(err);
@@ -115,7 +151,7 @@ export default function PosyanduLansia() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Kunjungan Bulan Ini</p>
-            <h3 className="text-2xl font-bold text-gray-900">0 <span className="text-sm font-normal text-gray-500">Kunjungan</span></h3>
+            <h3 className="text-2xl font-bold text-gray-900">{loading ? '...' : stats.kunjunganBulanIni} <span className="text-sm font-normal text-gray-500">Kunjungan</span></h3>
           </div>
         </div>
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4">
@@ -124,7 +160,7 @@ export default function PosyanduLansia() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Tekanan Darah Tinggi</p>
-            <h3 className="text-2xl font-bold text-gray-900">0 <span className="text-sm font-normal text-gray-500">Orang</span></h3>
+            <h3 className="text-2xl font-bold text-gray-900">{loading ? '...' : stats.hipertensi} <span className="text-sm font-normal text-gray-500">Orang</span></h3>
           </div>
         </div>
       </div>

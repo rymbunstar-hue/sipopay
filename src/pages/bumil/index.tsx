@@ -9,6 +9,7 @@ export default function DataIbuHamil() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [stats, setStats] = useState({ total: 0, kunjunganBulanIni: 0, risikoTinggi: 0, kek: 0 });
 
   const handleDeleteBumil = async (id: string, nama: string) => {
     if (!window.confirm(`Apakah Anda yakin ingin menghapus data ibu hamil "${nama}"?`)) return;
@@ -17,6 +18,7 @@ export default function DataIbuHamil() {
       const { error } = await supabase.from('peserta').delete().eq('id', id);
       if (error) throw error;
       setData(prev => prev.filter(item => item.id !== id));
+      setStats(prev => ({ ...prev, total: Math.max(0, prev.total - 1) }));
       alert(`Data ibu hamil "${nama}" berhasil dihapus.`);
     } catch (err: any) {
       alert(`Gagal menghapus ibu hamil: ${err?.message || 'Error'}`);
@@ -27,6 +29,8 @@ export default function DataIbuHamil() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        const now = new Date();
+        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
 
         const { data: rawPeserta } = await supabase
           .from('peserta')
@@ -41,6 +45,12 @@ export default function DataIbuHamil() {
             peserta (nama, nik)
           `)
           .order('tanggal', { ascending: false });
+
+        // Query kunjungan bulan ini
+        const { count: kunjunganBulanIniCount } = await supabase
+          .from('kunjungan_ibu_hamil')
+          .select('*', { count: 'exact', head: true })
+          .gte('tanggal', firstOfMonth);
 
         if (rawPeserta && rawPeserta.length > 0) {
           const list = rawPeserta.map(p => {
@@ -60,10 +70,34 @@ export default function DataIbuHamil() {
             };
           });
           setData(list);
+
+          const rTinggi = list.filter(item => ['tinggi', 'sangat_tinggi'].includes(item.status_risiko)).length;
+          const statusKekCount = list.filter(item => item.status_kek === true).length;
+
+          setStats({
+            total: rawPeserta.length,
+            kunjunganBulanIni: kunjunganBulanIniCount || 0,
+            risikoTinggi: rTinggi,
+            kek: statusKekCount,
+          });
+
         } else if (rawKunjungan && rawKunjungan.length > 0) {
-          setData(rawKunjungan.map(k => ({ ...k, has_kunjungan: true })));
+          const list = rawKunjungan.map(k => ({ ...k, has_kunjungan: true }));
+          setData(list);
+
+          const uniqueBumil = new Set(list.map(k => k.peserta_id)).size;
+          const rTinggi = list.filter(item => ['tinggi', 'sangat_tinggi'].includes(item.status_risiko)).length;
+          const statusKekCount = list.filter(item => item.status_kek === true).length;
+
+          setStats({
+            total: uniqueBumil,
+            kunjunganBulanIni: kunjunganBulanIniCount || 0,
+            risikoTinggi: rTinggi,
+            kek: statusKekCount,
+          });
         } else {
           setData([]);
+          setStats({ total: 0, kunjunganBulanIni: 0, risikoTinggi: 0, kek: 0 });
         }
       } catch (err) {
         console.error(err);
@@ -131,7 +165,7 @@ export default function DataIbuHamil() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Total Ibu Hamil</p>
-            <h3 className="text-2xl font-bold text-gray-900">0 <span className="text-sm font-normal text-gray-500">Orang</span></h3>
+            <h3 className="text-2xl font-bold text-gray-900">{loading ? '...' : stats.total} <span className="text-sm font-normal text-gray-500">Orang</span></h3>
           </div>
         </div>
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4">
@@ -140,7 +174,7 @@ export default function DataIbuHamil() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Kunjungan Bulan Ini</p>
-            <h3 className="text-2xl font-bold text-gray-900">0 <span className="text-sm font-normal text-gray-500">Kunjungan</span></h3>
+            <h3 className="text-2xl font-bold text-gray-900">{loading ? '...' : stats.kunjunganBulanIni} <span className="text-sm font-normal text-gray-500">Kunjungan</span></h3>
           </div>
         </div>
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4">
@@ -149,7 +183,7 @@ export default function DataIbuHamil() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Risiko Tinggi</p>
-            <h3 className="text-2xl font-bold text-gray-900">0 <span className="text-sm font-normal text-gray-500">Orang</span></h3>
+            <h3 className="text-2xl font-bold text-gray-900">{loading ? '...' : stats.risikoTinggi} <span className="text-sm font-normal text-gray-500">Orang</span></h3>
           </div>
         </div>
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4">
@@ -158,7 +192,7 @@ export default function DataIbuHamil() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Status KEK</p>
-            <h3 className="text-2xl font-bold text-gray-900">0 <span className="text-sm font-normal text-gray-500">Orang</span></h3>
+            <h3 className="text-2xl font-bold text-gray-900">{loading ? '...' : stats.kek} <span className="text-sm font-normal text-gray-500">Orang</span></h3>
           </div>
         </div>
       </div>
