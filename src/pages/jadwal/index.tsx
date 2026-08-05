@@ -19,6 +19,8 @@ export default function JadwalPosyandu() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('semua');
 
   const [formData, setFormData] = useState({
     tanggal: new Date().toISOString().split('T')[0],
@@ -41,7 +43,7 @@ export default function JadwalPosyandu() {
         .from('sesi_posyandu')
         .select('*, posyandu(nama)')
         .order('tanggal', { ascending: false })
-        .limit(20);
+        .limit(50);
 
       if (!error && data) {
         setSessions(data);
@@ -50,6 +52,36 @@ export default function JadwalPosyandu() {
       console.error(err);
     } finally {
       setLoadingSessions(false);
+    }
+  };
+
+  const handleToggleStatus = async (sessionId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'aktif' ? 'selesai' : 'aktif';
+    try {
+      const { error } = await supabase
+        .from('sesi_posyandu')
+        .update({ status: newStatus })
+        .eq('id', sessionId);
+
+      if (error) throw error;
+      setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, status: newStatus } : s));
+    } catch (err: any) {
+      alert(`Gagal mengubah status: ${err?.message || 'Error'}`);
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus jadwal posyandu ini?')) return;
+    try {
+      const { error } = await supabase
+        .from('sesi_posyandu')
+        .delete()
+        .eq('id', sessionId);
+
+      if (error) throw error;
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
+    } catch (err: any) {
+      alert(`Gagal menghapus jadwal: ${err?.message || 'Error'}`);
     }
   };
 
@@ -87,6 +119,16 @@ export default function JadwalPosyandu() {
     }
   };
 
+  const filteredSessions = sessions.filter(session => {
+    const matchSearch = searchQuery === '' || 
+      (session.posyandu?.nama || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (session.catatan || '').toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchStatus = statusFilter === 'semua' || session.status === statusFilter;
+
+    return matchSearch && matchStatus;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -114,15 +156,21 @@ export default function JadwalPosyandu() {
             </div>
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green sm:text-sm transition-all"
               placeholder="Cari jadwal posyandu..."
             />
           </div>
-          <div className="flex gap-2">
-            <select className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors">
-              <option>Semua Status</option>
-              <option>Aktif</option>
-              <option>Selesai</option>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full sm:w-auto px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gov-green/20 focus:border-gov-green transition-colors cursor-pointer"
+            >
+              <option value="semua">Semua Status</option>
+              <option value="aktif">Aktif</option>
+              <option value="selesai">Selesai</option>
             </select>
           </div>
         </div>
@@ -133,20 +181,26 @@ export default function JadwalPosyandu() {
               <div className="animate-spin h-8 w-8 border-2 border-gov-green border-t-transparent rounded-full mx-auto mb-4"></div>
               <span>Memuat jadwal sesi...</span>
             </div>
-          ) : sessions.length === 0 ? (
+          ) : filteredSessions.length === 0 ? (
             <div className="py-20 text-center text-gray-400">
               <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-base text-gray-500 mb-4">Belum ada jadwal posyandu.</p>
-              <button 
-                onClick={() => setShowModal(true)}
-                className="px-6 py-2.5 bg-gov-green text-white rounded-xl text-sm font-medium hover:bg-gov-green-dark transition-colors"
-              >
-                Buat Jadwal Pertama
-              </button>
+              <p className="text-base text-gray-500 mb-4">
+                {searchQuery || statusFilter !== 'semua'
+                  ? 'Tidak ada jadwal posyandu yang cocok dengan filter.'
+                  : 'Belum ada jadwal posyandu.'}
+              </p>
+              {!searchQuery && statusFilter === 'semua' && (
+                <button 
+                  onClick={() => setShowModal(true)}
+                  className="px-6 py-2.5 bg-gov-green text-white rounded-xl text-sm font-medium hover:bg-gov-green-dark transition-colors"
+                >
+                  Buat Jadwal Pertama
+                </button>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
-              {sessions.map((session) => (
+              {filteredSessions.map((session) => (
                 <div key={session.id} className="p-6 hover:bg-gray-50/50 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-start gap-4">
                     <div className={`p-3 rounded-2xl flex-shrink-0 ${session.status === 'aktif' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -171,14 +225,31 @@ export default function JadwalPosyandu() {
                       )}
                     </div>
                   </div>
+
                   <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
                     <span className={`px-3 py-1.5 text-xs font-semibold rounded-full capitalize w-full sm:w-auto text-center ${
                       session.status === 'aktif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                     }`}>
-                      {session.status}
+                      ● {session.status}
                     </span>
-                    <button className="px-4 py-1.5 text-sm font-medium text-gov-green bg-gov-green/10 rounded-lg hover:bg-gov-green/20 transition-colors w-full sm:w-auto">
-                      Detail
+
+                    <button
+                      onClick={() => handleToggleStatus(session.id, session.status)}
+                      className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition-all shadow-sm w-full sm:w-auto ${
+                        session.status === 'aktif'
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {session.status === 'aktif' ? '✓ Selesaikan Sesi' : 'Aktifkan Kembali'}
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteSession(session.id)}
+                      className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors"
+                      title="Hapus jadwal sesi"
+                    >
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
