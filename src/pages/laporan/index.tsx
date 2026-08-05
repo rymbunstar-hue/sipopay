@@ -69,10 +69,10 @@ export default function Laporan() {
 
     try {
       if (activeTab === 'balita') {
-        // Total balita terdaftar
-        const { count: totalBalita } = await supabase
+        // Ambil daftar balita aktif beserta tanggal lahir dan tanggal pendaftaran
+        const { data: allBalita } = await supabase
           .from('peserta')
-          .select('*', { count: 'exact', head: true })
+          .select('id, tanggal_lahir, created_at')
           .eq('kategori', 'balita')
           .eq('aktif', true);
 
@@ -87,7 +87,15 @@ export default function Laporan() {
         const stunting = (kunjungan || []).filter((k: any) => ['stunted', 'severely_stunted'].includes(k.stunting_status)).length;
         const giziKurang = (kunjungan || []).filter((k: any) => k.status_gizi_bbu === 'underweight').length;
         const hadir = uniquePeserta.size;
-        const total = totalBalita || 0;
+
+        // Target balita terdaftar pada bulan terpilih (sudah lahir & terdaftar)
+        const total = (allBalita || []).filter((b: any) => {
+          const birthDate = b.tanggal_lahir || null;
+          const regDate = b.created_at ? b.created_at.split('T')[0] : null;
+          if (birthDate && birthDate > end) return false;
+          if (regDate && regDate > end) return false;
+          return true;
+        }).length || (allBalita?.length || 0);
 
         setBalitaStat({
           hadir,
@@ -109,10 +117,25 @@ export default function Laporan() {
 
           const uniqHadir = new Set((kj || []).map((k: any) => k.peserta_id)).size;
           const stuntBulan = (kj || []).filter((k: any) => ['stunted', 'severely_stunted'].includes(k.stunting_status)).length;
+
+          // Target balita khusus pada bulan d (balita yang sudah terdaftar & lahir pada/sebelum bulan d)
+          const targetBulan = (allBalita || []).filter((b: any) => {
+            const birthDate = b.tanggal_lahir || null;
+            const regDate = b.created_at ? b.created_at.split('T')[0] : null;
+
+            // Jika balita belum lahir pada bulan d, kecualikan dari target bulan d
+            if (birthDate && birthDate > e) return false;
+
+            // Jika balita terdaftar setelah bulan d, kecualikan dari target bulan d
+            if (regDate && regDate > e) return false;
+
+            return true;
+          }).length;
+
           trend.push({
             bulan: `${MONTHS[d.getMonth()]} ${d.getFullYear()}`,
             hadir: uniqHadir,
-            target: total,
+            target: targetBulan,
             stunting: stuntBulan,
           });
         }
