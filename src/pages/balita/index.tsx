@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Plus, Activity, Baby, Calendar } from 'lucide-react';
+import { Search, Plus, Activity, Baby, Calendar, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 
@@ -13,6 +13,20 @@ export default function PosyanduBalita() {
   const [stuntingBulanIni, setStuntingBulanIni] = useState(0);
 
   const { user } = useAuthStore();
+
+  const handleDeleteBalita = async (id: string, nama: string) => {
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus data balita "${nama}"?`)) return;
+    try {
+      await supabase.from('hasil_deteksi_stunting').delete().eq('balita_id', id);
+      await supabase.from('kunjungan_balita').delete().eq('peserta_id', id);
+      const { error } = await supabase.from('peserta').delete().eq('id', id);
+      if (error) throw error;
+      setData(prev => prev.filter(item => item.id !== id));
+      alert(`Data balita "${nama}" berhasil dihapus.`);
+    } catch (err: any) {
+      alert(`Gagal menghapus balita: ${err?.message || 'Error'}`);
+    }
+  };
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -255,12 +269,21 @@ export default function PosyanduBalita() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link
-                          to="/balita/tambah"
-                          className="px-3 py-1.5 bg-gov-green/10 text-gov-green hover:bg-gov-green/20 rounded-lg text-xs font-semibold transition-colors"
-                        >
-                          + Input Kunjungan
-                        </Link>
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            to="/balita/tambah"
+                            className="px-3 py-1.5 bg-gov-green/10 text-gov-green hover:bg-gov-green/20 rounded-lg text-xs font-semibold transition-colors"
+                          >
+                            + Input Kunjungan
+                          </Link>
+                          <button
+                            onClick={() => handleDeleteBalita(item.id, item.nama)}
+                            className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Hapus data balita"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Plus, Activity, HeartPulse, Calendar } from 'lucide-react';
+import { Search, Plus, Activity, HeartPulse, Calendar, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 
@@ -10,6 +10,19 @@ export default function PosyanduLansia() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const { user } = useAuthStore();
+
+  const handleDeleteLansia = async (id: string, nama: string) => {
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus data lansia "${nama}"?`)) return;
+    try {
+      await supabase.from('kunjungan_lansia').delete().eq('peserta_id', id);
+      const { error } = await supabase.from('peserta').delete().eq('id', id);
+      if (error) throw error;
+      setData(prev => prev.filter(item => item.id !== id));
+      alert(`Data lansia "${nama}" berhasil dihapus.`);
+    } catch (err: any) {
+      alert(`Gagal menghapus lansia: ${err?.message || 'Error'}`);
+    }
+  };
 
   useEffect(() => {
     const fetchKunjungan = async () => {
@@ -174,9 +187,18 @@ export default function PosyanduLansia() {
                       {item.keluhan || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <Link to="/lansia/tambah" className="text-gov-green hover:text-gov-green-dark font-medium">
-                        + Input Periksa
-                      </Link>
+                      <div className="flex items-center justify-end gap-2">
+                        <Link to="/lansia/tambah" className="px-3 py-1.5 bg-gov-green/10 text-gov-green hover:bg-gov-green/20 rounded-lg text-xs font-semibold transition-colors">
+                          + Input Periksa
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteLansia(item.id, item.peserta?.nama || 'Lansia')}
+                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Hapus data lansia"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

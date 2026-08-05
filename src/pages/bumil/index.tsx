@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Plus, HeartPulse, AlertTriangle, Stethoscope, CalendarDays } from 'lucide-react';
+import { Search, Plus, HeartPulse, AlertTriangle, Stethoscope, CalendarDays, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 
@@ -9,6 +9,19 @@ export default function DataIbuHamil() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleDeleteBumil = async (id: string, nama: string) => {
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus data ibu hamil "${nama}"?`)) return;
+    try {
+      await supabase.from('kunjungan_ibu_hamil').delete().eq('peserta_id', id);
+      const { error } = await supabase.from('peserta').delete().eq('id', id);
+      if (error) throw error;
+      setData(prev => prev.filter(item => item.id !== id));
+      alert(`Data ibu hamil "${nama}" berhasil dihapus.`);
+    } catch (err: any) {
+      alert(`Gagal menghapus ibu hamil: ${err?.message || 'Error'}`);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -176,13 +189,14 @@ export default function DataIbuHamil() {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Usia Kehamilan</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">BB / Tekanan Darah</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">KEK</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Risiko</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Risiko</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Aksi</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
                     <div className="flex justify-center items-center gap-2">
                       <div className="animate-spin h-5 w-5 border-2 border-gov-green border-t-transparent rounded-full"></div>
                       <span>Memuat data...</span>
@@ -191,7 +205,7 @@ export default function DataIbuHamil() {
                 </tr>
               ) : filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-14 text-center">
+                  <td colSpan={7} className="px-6 py-14 text-center">
                     <HeartPulse className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                     <p className="font-medium text-gray-900">Belum ada data pemeriksaan</p>
                     <p className="text-sm text-gray-500 mt-1">Mulai tambahkan data kunjungan ibu hamil.</p>
@@ -225,10 +239,19 @@ export default function DataIbuHamil() {
                         {item.status_kek ? 'Ya' : 'Tidak'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRisikoColor(item.status_risiko)}`}>
                         {getRisikoLabel(item.status_risiko)}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleDeleteBumil(item.id, item.peserta?.nama || 'Ibu Hamil')}
+                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Hapus data ibu hamil"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))
