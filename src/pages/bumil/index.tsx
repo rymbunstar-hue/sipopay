@@ -279,13 +279,21 @@ export default function DataIbuHamil() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleDeleteBumil(item.id, item.peserta?.nama || 'Ibu Hamil')}
-                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Hapus data ibu hamil"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          to={`/bumil/tambah?peserta_id=${item.id}`}
+                          className="px-3 py-1.5 bg-gov-green/10 text-gov-green hover:bg-gov-green/20 rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          + Input Kunjungan
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteBumil(item.id, item.peserta?.nama || 'Ibu Hamil')}
+                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Hapus data ibu hamil"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

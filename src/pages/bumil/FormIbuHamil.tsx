@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, HeartPulse, Scale, Stethoscope, Pill, Search, X, ChevronDown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
@@ -131,12 +131,15 @@ function BumilCombobox({
 
 export default function FormIbuHamil() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialPesertaId = searchParams.get('peserta_id') || '';
+
   const [loading, setLoading] = useState(false);
   const [pesertaList, setPesertaList] = useState<any[]>([]);
   const { user } = useAuthStore();
 
   const [formData, setFormData] = useState({
-    peserta_id: '',
+    peserta_id: initialPesertaId,
     tanggal: new Date().toISOString().split('T')[0],
     hpht: '',
     hpl: '',
