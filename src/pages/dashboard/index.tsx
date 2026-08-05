@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Users, Baby, Activity, AlertCircle, BookOpen, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, Baby, Activity, AlertCircle, BookOpen, Loader2, ArrowRight } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   BarChart, Bar, Legend
@@ -9,6 +10,7 @@ import { supabase } from '../../lib/supabase';
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({ balita: 0, bumil: 0, kehadiran: 0, stunting: 0 });
   const [attendanceData, setAttendanceData] = useState<{ name: string; kehadiran: number }[]>([]);
   const [giziData, setGiziData] = useState<{ name: string; normal: number; kurang: number; stunting: number }[]>([]);
@@ -17,15 +19,16 @@ export default function Dashboard() {
   useEffect(() => {
     fetchDashboardData();
 
-    // Realtime subscription — refresh otomatis saat ada data baru
-    const balitaSub = supabase
-      .channel('dashboard-realtime')
+    // Realtime subscription — refresh otomatis saat ada data baru di hasil_deteksi_stunting / kunjungan_balita / peserta
+    const realTimeSub = supabase
+      .channel('dashboard-stunting-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'hasil_deteksi_stunting' }, () => fetchDashboardData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'kunjungan_balita' }, () => fetchDashboardData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'kunjungan_ibu_hamil' }, () => fetchDashboardData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'peserta' }, () => fetchDashboardData())
       .subscribe();
 
-    return () => { supabase.removeChannel(balitaSub); };
+    return () => { supabase.removeChannel(realTimeSub); };
   }, []);
 
   const fetchDashboardData = async () => {
@@ -34,6 +37,7 @@ export default function Dashboard() {
       const now = new Date();
       const currentYear = now.getFullYear();
       const currentMonth = now.getMonth(); // 0-indexed
+      const firstOfMonth = new Date(currentYear, currentMonth, 1).toISOString().split('T')[0];
 
       // 1. Total balita aktif terdaftar
       const { count: balitaCount } = await supabase
@@ -49,13 +53,47 @@ export default function Dashboard() {
         .eq('kategori', 'ibu_hamil')
         .eq('aktif', true);
 
-      // 3. Stunting bulan ini
-      const firstOfMonth = new Date(currentYear, currentMonth, 1).toISOString().split('T')[0];
-      const { count: stuntingCount } = await supabase
-        .from('kunjungan_balita')
-        .select('*', { count: 'exact', head: true })
-        .gte('tanggal', firstOfMonth)
-        .in('stunting_status', ['stunted', 'severely_stunted']);
+      // 3. Stunting (balita berisiko tinggi dari hasil_deteksi_stunting - pemeriksaan terbaru per balita)
+      let stuntingCount = 0;
+      try {
+        const { data: stuntingData } = await supabase
+          .from('hasil_deteksi_stunting')
+          .select('balita_id, kategori, tanggal_pemeriksaan')
+          .order('tanggal_pemeriksaan', { ascending: false });
+
+        if (stuntingData && stuntingData.length > 0) {
+          // Ambil hasil pemeriksaan terbaru per balita (DISTINCT ON balita_id)
+          const latestPerBalita = new Map<string, any>();
+          stuntingData.forEach(item => {
+            if (!latestPerBalita.has(item.balita_id)) {
+              latestPerBalita.set(item.balita_id, item);
+            }
+          });
+
+          stuntingCount = Array.from(latestPerBalita.values()).filter(
+            item => item.kategori === 'Risiko Tinggi'
+          ).length;
+        } else {
+          // Fallback jika belum ada data di hasil_deteksi_stunting -> periksa kunjungan_balita
+          const { data: kunjunganData } = await supabase
+            .from('kunjungan_balita')
+            .select('peserta_id, stunting_status, status_gizi_tbu, tanggal')
+            .order('tanggal', { ascending: false });
+
+          const latestKunjungan = new Map<string, any>();
+          (kunjunganData || []).forEach(item => {
+            if (!latestKunjungan.has(item.peserta_id)) {
+              latestKunjungan.set(item.peserta_id, item);
+            }
+          });
+
+          stuntingCount = Array.from(latestKunjungan.values()).filter(
+            item => item.stunting_status === 'severely_stunted' || item.status_gizi_tbu === 'Risiko Tinggi'
+          ).length;
+        }
+      } catch (err) {
+        console.error('Error querying stunting count:', err);
+      }
 
       // 4. Kunjungan balita bulan ini vs total balita → % kehadiran
       const { count: kunjunganCount } = await supabase
@@ -71,7 +109,7 @@ export default function Dashboard() {
         balita: balitaCount || 0,
         bumil: bumilCount || 0,
         kehadiran: pctKehadiran,
-        stunting: stuntingCount || 0,
+        stunting: stuntingCount,
       });
 
       // 5. Tren kehadiran 7 bulan terakhir
@@ -121,12 +159,39 @@ export default function Dashboard() {
     }
   };
 
-  const statCards = [
-    { title: 'Total Balita', value: stats.balita.toString(), icon: Baby, color: 'bg-blue-500', sub: 'terdaftar aktif' },
-    { title: 'Ibu Hamil', value: stats.bumil.toString(), icon: Users, color: 'bg-pink-500', sub: 'terdaftar aktif' },
-    { title: 'Tingkat Kehadiran', value: `${stats.kehadiran}%`, icon: Activity, color: 'bg-green-500', sub: 'bulan ini' },
-    { title: 'Beresiko Stunting', value: stats.stunting.toString(), icon: AlertCircle, color: 'bg-red-500', sub: 'kasus bulan ini' },
-  ];
+  // Pewarnaan dinamis untuk card "Beresiko Stunting":
+  // 0 kasus = Hijau
+  // 1-5 kasus = Kuning
+  // >5 kasus = Merah
+  const getStuntingCardStyle = (count: number) => {
+    if (count === 0) {
+      return {
+        cardBg: 'bg-emerald-50/80 hover:bg-emerald-100/80 border-emerald-200',
+        textColor: 'text-emerald-900',
+        badgeBg: 'bg-emerald-100 text-emerald-700',
+        iconBg: 'bg-emerald-500 text-white',
+        subText: '0 kasus (Kondisi Aman / Hijau)'
+      };
+    }
+    if (count <= 5) {
+      return {
+        cardBg: 'bg-amber-50/80 hover:bg-amber-100/80 border-amber-200',
+        textColor: 'text-amber-900',
+        badgeBg: 'bg-amber-100 text-amber-800',
+        iconBg: 'bg-amber-500 text-white',
+        subText: `${count} kasus (Perhatian / Kuning)`
+      };
+    }
+    return {
+      cardBg: 'bg-rose-50/80 hover:bg-rose-100/80 border-rose-200',
+      textColor: 'text-rose-900',
+      badgeBg: 'bg-rose-100 text-rose-800',
+      iconBg: 'bg-rose-500 text-white',
+      subText: `${count} kasus (Risiko Tinggi / Merah)`
+    };
+  };
+
+  const stuntingStyle = getStuntingCardStyle(stats.stunting);
 
   return (
     <div className="space-y-6">
@@ -145,23 +210,81 @@ export default function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat, index) => (
-          <div key={index} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500 mb-1">{stat.title}</p>
-                <h3 className="text-3xl font-bold text-gray-900">{stat.value}</h3>
-              </div>
-              <div className={`p-3 rounded-xl ${stat.color} bg-opacity-10`}>
-                <stat.icon className="h-6 w-6 text-gray-600" />
-              </div>
+        
+        {/* Card 1: Total Balita */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500 mb-1">Total Balita</p>
+              <h3 className="text-3xl font-bold text-gray-900">{stats.balita}</h3>
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-50">
-              <span className="text-xs font-medium text-gov-green">{stat.sub}</span>
+            <div className="p-3 rounded-xl bg-blue-500 bg-opacity-10 text-blue-600">
+              <Baby className="h-6 w-6" />
             </div>
           </div>
-        ))}
+          <div className="mt-4 pt-4 border-t border-gray-50">
+            <span className="text-xs font-medium text-gov-green">terdaftar aktif</span>
+          </div>
+        </div>
+
+        {/* Card 2: Ibu Hamil */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500 mb-1">Ibu Hamil</p>
+              <h3 className="text-3xl font-bold text-gray-900">{stats.bumil}</h3>
+            </div>
+            <div className="p-3 rounded-xl bg-pink-500 bg-opacity-10 text-pink-600">
+              <Users className="h-6 w-6" />
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-gray-50">
+            <span className="text-xs font-medium text-gov-green">terdaftar aktif</span>
+          </div>
+        </div>
+
+        {/* Card 3: Tingkat Kehadiran */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500 mb-1">Tingkat Kehadiran</p>
+              <h3 className="text-3xl font-bold text-gray-900">{stats.kehadiran}%</h3>
+            </div>
+            <div className="p-3 rounded-xl bg-green-500 bg-opacity-10 text-green-600">
+              <Activity className="h-6 w-6" />
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-gray-50">
+            <span className="text-xs font-medium text-gov-green">bulan ini</span>
+          </div>
+        </div>
+
+        {/* Card 4: Beresiko Stunting (Dinamis + Clickable) */}
+        <div 
+          onClick={() => navigate('/balita-berisiko-stunting')}
+          className={`rounded-2xl p-6 shadow-sm border cursor-pointer transition-all hover:scale-[1.02] ${stuntingStyle.cardBg}`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-1">Beresiko Stunting</p>
+              <h3 className={`text-3xl font-bold ${stuntingStyle.textColor}`}>{stats.stunting}</h3>
+            </div>
+            <div className={`p-3 rounded-xl ${stuntingStyle.iconBg}`}>
+              <AlertCircle className="h-6 w-6" />
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-black/5 flex items-center justify-between">
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${stuntingStyle.badgeBg}`}>
+              {stuntingStyle.subText}
+            </span>
+            <span className="text-xs font-medium text-gray-600 flex items-center gap-1 hover:underline">
+              Lihat Detail <ArrowRight className="h-3 w-3" />
+            </span>
+          </div>
+        </div>
+
       </div>
+
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 
 import { useAuthStore } from '../../store/authStore';
 import { getActiveSesiId } from '../../lib/seedPosyandu';
+import { calculateStuntingRisk } from '../../utils/stuntingCalculator';
 
 // ── Searchable Combobox Component ──────────────────────────────────────────
 interface ComboboxOption { id: string; nama: string; nik?: string | null; }
@@ -184,6 +185,27 @@ export default function FormKunjunganBalita() {
     try {
       const sesiId = await getActiveSesiId();
 
+      // Fetch info balita (tanggal lahir & jenis kelamin) untuk kalkulasi stunting
+      const { data: selectedPeserta } = await supabase
+        .from('peserta')
+        .select('tanggal_lahir, jenis_kelamin')
+        .eq('id', formData.peserta_id)
+        .single();
+
+      const stuntingRisk = calculateStuntingRisk({
+        tinggiBadan: parseFloat(formData.tinggi_badan),
+        beratBadan: parseFloat(formData.berat_badan),
+        tanggalLahir: selectedPeserta?.tanggal_lahir,
+        tanggalPemeriksaan: formData.tanggal_kunjungan,
+        jenisKelamin: selectedPeserta?.jenis_kelamin || 'L'
+      });
+
+      const stuntingStatusText = stuntingRisk.kategori === 'Risiko Tinggi'
+        ? 'severely_stunted'
+        : stuntingRisk.kategori === 'Risiko Sedang'
+        ? 'stunted'
+        : 'normal';
+
       const kunjunganData: any = {
         peserta_id: formData.peserta_id,
         berat_badan: parseFloat(formData.berat_badan),
@@ -192,12 +214,12 @@ export default function FormKunjunganBalita() {
         lingkar_kepala: formData.lingkar_kepala ? parseFloat(formData.lingkar_kepala) : null,
         lingkar_lengan: formData.lingkar_lengan ? parseFloat(formData.lingkar_lengan) : null,
         z_score_bbu: 0.5,
-        z_score_tbu: 0.2,
+        z_score_tbu: stuntingRisk.zScore,
         z_score_bbtb: 0.3,
         status_gizi_bbu: 'Normal',
-        status_gizi_tbu: 'Normal',
+        status_gizi_tbu: stuntingRisk.kategori,
         status_gizi_bbtb: 'Normal',
-        stunting_status: 'normal',
+        stunting_status: stuntingStatusText,
         catatan: formData.catatan_kader || null,
         tanggal: formData.tanggal_kunjungan
       };
@@ -219,6 +241,18 @@ export default function FormKunjunganBalita() {
       }
 
       if (error) throw error;
+
+      // 2. Simpan otomatis ke tabel hasil_deteksi_stunting
+      try {
+        await supabase.from('hasil_deteksi_stunting').insert([{
+          balita_id: formData.peserta_id,
+          tanggal_pemeriksaan: formData.tanggal_kunjungan,
+          kategori: stuntingRisk.kategori,
+          skor: stuntingRisk.skor
+        }]);
+      } catch (stuntingErr) {
+        console.warn('Tabel hasil_deteksi_stunting belum di-migrate di Supabase:', stuntingErr);
+      }
       
       navigate('/balita');
     } catch (error: any) {

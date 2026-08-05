@@ -18,6 +18,7 @@ import DataLansia from './pages/lansia';
 import FormLansia from './pages/lansia/FormKunjunganLansia';
 import Laporan from './pages/laporan';
 import Pengaturan from './pages/pengaturan';
+import DaftarBalitaBerisikoStunting from './pages/stunting/DaftarBalitaBerisikoStunting';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
@@ -50,6 +51,7 @@ function App() {
           {/* Posyandu Balita */}
           <Route path="balita" element={<PosyanduBalita />} />
           <Route path="balita/tambah" element={<FormKunjunganBalita />} />
+          <Route path="balita-berisiko-stunting" element={<DaftarBalitaBerisikoStunting />} />
           
           {/* Imunisasi */}
           <Route path="imunisasi" element={<DataImunisasi />} />

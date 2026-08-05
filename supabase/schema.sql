@@ -304,3 +304,20 @@ using (
         where id = auth.uid() and role in ('kader', 'bidan', 'admin_desa', 'super_admin')
     )
 );
+
+-- 9. TABEL HASIL DETEKSI STUNTING
+create table public.hasil_deteksi_stunting (
+    id uuid primary key default gen_random_uuid(),
+    balita_id uuid references public.peserta(id) on delete cascade not null,
+    tanggal_pemeriksaan date not null default current_date,
+    kategori text not null check (kategori in ('Normal', 'Risiko Sedang', 'Risiko Tinggi')),
+    skor numeric(5,2) not null default 0,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.hasil_deteksi_stunting enable row level security;
+
+create policy "Allow authenticated to manage hasil_deteksi_stunting" 
+on public.hasil_deteksi_stunting for all to authenticated 
+using (true) with check (true);
+
